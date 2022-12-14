@@ -1,3 +1,4 @@
+# File System #
 data_loc = "/misc/export3/morimoto/data/wave/rec/morimoto"
 noise_type = {
     "bus" : "BUS",
@@ -16,3 +17,14 @@ SNR = {
     -15 : "m15",
     -20 : "m20"
 }
+degree_step = 5
+
+# Audio Data #
+sampling_freq = 16000 # Hz
+stft_window = 512
+stft_hop_size = 160
+volume_threshold = -50 # dB
+
+# Model #
+batch_size = 8192
+epochs = 100
