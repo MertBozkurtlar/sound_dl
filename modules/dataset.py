@@ -7,6 +7,7 @@ import constants
 
 class SpeechDataset(Dataset):
     def __init__(self, _constants):
+        super().__init__()
         self.path = _constants.data_loc
         self.constants = _constants
         self.noise_type = ["bus"]
