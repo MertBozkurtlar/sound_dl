@@ -19,6 +19,7 @@ class SpeechDataset(Dataset):
         audio_sample_path = self.get_audio_sample_path(self.handle_index(index))
         label = self.degree[self.handle_index(index)[2]]
         signal, sr = torchaudio.load(audio_sample_path)
+        signal = self.resample_audio(signal, sr)
         return signal, label
 
     # Returns the noise_type, snr, sample index from the given index
@@ -36,6 +37,12 @@ class SpeechDataset(Dataset):
         sample_degree = self.degree[sample_ind]
         file_path = self.path + '/' + self.constants.noise_type[sample_noise_type] + '/' + self.constants.SNR[sample_snr] + '/' + f"sp-deg_{sample_degree:03d}" + '.wav'
         return file_path
+
+    def resample_audio(self, signal, sr):
+        if sr != self.constants.sampling_freq:
+            resampler = torchaudio.transforms.Resample(sr, self.constants.sampling_freq)
+            signal = resampler(signal)
+        return signal
 
 
 if __name__ == "__name__":
