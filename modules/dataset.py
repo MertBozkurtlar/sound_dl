@@ -1,3 +1,4 @@
+from torch.cuda import is_available
 from torch.utils.data import Dataset
 import torchaudio
 import numpy as np
@@ -11,7 +12,8 @@ class SpeechDataset(Dataset):
         self.noise_type = ["bus"]
         self.snr = [20,40,60]
         self.degree = list(range(0, 360, self.constants.degree_step))
-    
+        self.device = 'cuda' if is_available() else 'cpu'
+
     def __len__(self):
         return len(self.noise_type) * len(self.snr) * len(self.degree)
 
@@ -19,6 +21,7 @@ class SpeechDataset(Dataset):
         audio_sample_path = self.get_audio_sample_path(self.handle_index(index))
         label = self.degree[self.handle_index(index)[2]]
         signal, sr = torchaudio.load(audio_sample_path)
+        signal = signal.to(self.device)
         signal = self.resample_audio(signal, sr)
         return signal, label
 
