@@ -1,4 +1,4 @@
-data_loc = "\misc\export3\morimoto\data\wave\rec\morimoto"
+data_loc = "/misc/export3/morimoto/data/wave/rec/morimoto"
 noise_type = {
     "bus" : "BUS",
     "cafe" : "CAF",
