@@ -1,5 +1,6 @@
 # File System #
 data_loc = "/misc/export3/morimoto/data/wave/rec/morimoto"
+model_save_loc = "model/vm_model.pth"
 noise_type = {
     "bus" : "BUS",
     "cafe" : "CAF",
@@ -21,10 +22,14 @@ degree_step = 5
 
 # Audio Data #
 sampling_freq = 16000 # Hz
-stft_window = 512
-stft_hop_size = 160
+duration = 10 # secs
+stft_frame_size = 512
+stft_hop_size = 256
 volume_threshold = -50 # dB
+num_of_channels = 8
 
 # Model #
-batch_size = 8192
-epochs = 100
+input_size = int((((sampling_freq * duration) / stft_hop_size) + 1) *  (stft_frame_size/2 + 1) * num_of_channels)
+batch_size = 3
+epochs = 1
+learning_rate = 0.001
