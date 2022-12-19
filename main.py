@@ -1,5 +1,6 @@
 from modules import dataset, model, train, constants
 import torch
+import os
 
 def train_pipeline():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -18,5 +19,7 @@ def train_pipeline():
     train.train_model(vm_net, data_loader, optimizer, loss_fn, constants.epochs)
 
     # Save the model
-    torch.save(vm_net.state_dict(), constants.model_save_loc)
+    if not os.path.exists(constants.model_save_loc):
+        os.makedirs(constants.model_save_loc)
+    torch.save(vm_net.state_dict(), constants.model_save_loc + "/vm_model.pth")
     print(f"Trained model is saved at {constants.model_save_loc}")

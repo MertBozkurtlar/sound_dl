@@ -1,6 +1,6 @@
 # File System #
 data_loc = "/misc/export3/morimoto/data/wave/rec/morimoto"
-model_save_loc = "model/vm_model.pth"
+model_save_loc = "model"
 noise_type = {
     "bus" : "BUS",
     "cafe" : "CAF",
@@ -31,5 +31,5 @@ num_of_channels = 8
 # Model #
 input_size = int((((sampling_freq * duration) / stft_hop_size) + 1) *  (stft_frame_size/2 + 1) * num_of_channels)
 batch_size = 3
-epochs = 1
+epochs = 20
 learning_rate = 0.001

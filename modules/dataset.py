@@ -1,9 +1,11 @@
 from torch.cuda import is_available
 from torch.utils.data import Dataset, DataLoader
 import torchaudio
+import torch
 from torch.nn import functional as F
 import numpy as np
 import math
+import random
 import librosa
 
 
@@ -25,12 +27,13 @@ class SpeechDataset(Dataset):
     def __getitem__(self, index):
         audio_sample_path = self.get_audio_sample_path(self.handle_index(index))
         label = self.degree[self.handle_index(index)[2]]
-        signal, sr = torchaudio.load(audio_sample_path)
+        signal, sr = self.get_random_cut(audio_sample_path)
         signal = signal.to(self.device)
         signal = self.resample_audio(signal, sr)
-        signal = self.cut_audio(signal)
-        signal = self.add_padding_to_audio(signal)
+        #signal = self.cut_audio(signal)
+        #signal = self.add_padding_to_audio(signal)
         spec = self.stft(signal)
+        label = self.encode_label(label)
         return spec, label
 
     # Returns the noise_type, snr, sample index from the given index
@@ -55,6 +58,17 @@ class SpeechDataset(Dataset):
             signal = resampler(signal)
         return signal
 
+    def get_random_cut(self, audio_sample_path):
+        # Get a random $constants.duration second parts of the audio
+        metadata = torchaudio.info(audio_sample_path)
+
+        num_frames = self.constants.duration * metadata.sample_rate
+        audio_length = metadata.num_frames
+        frame_offset = random.randrange(audio_length - num_frames)
+
+        signal, sr = torchaudio.load(audio_sample_path, frame_offset=frame_offset, num_frames=num_frames)
+        return signal, sr
+
     def cut_audio(self, signal):
         if signal.shape[1] > self.num_of_samples:
             signal = signal[:, :self.num_of_samples]
@@ -66,6 +80,12 @@ class SpeechDataset(Dataset):
             padding = (0, missing_samples)
             signal = F.pad(signal, padding)
         return signal
+    
+    def encode_label(self, label):
+        label = int(label / self.constants.degree_step)
+        vector = torch.zeros(int(360 / self.constants.degree_step))
+        vector[label] = 1
+        return vector
 
 
 def create_data_loader(train_data, batch_size):

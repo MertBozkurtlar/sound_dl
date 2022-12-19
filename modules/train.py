@@ -1,8 +1,9 @@
 from torch.cuda import is_available
+from tqdm import tqdm
 
 def train_epoch(model, data_loader, optimizer, loss_fn, device):
     print(len(data_loader.dataset))
-    for input, target in data_loader:
+    for input, target in tqdm(data_loader):
         input, target = input.to(device), target.to(device)
 
         # forward pass
@@ -13,7 +14,6 @@ def train_epoch(model, data_loader, optimizer, loss_fn, device):
         optimizer.zero_grad()
         loss.backward()
         optimizer.step()
-        print(loss.item())
     print(f"Loss: {loss.item()}")
 
 def train_model(model, data_loader, optimizer, loss_fn, epochs):
