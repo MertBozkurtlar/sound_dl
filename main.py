@@ -1,4 +1,4 @@
-from modules import dataset, model, train, constants
+from modules import dataset, model, train, constants, preprocess
 import torch
 import os
 
@@ -6,8 +6,9 @@ def train_pipeline():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     # Data
-    data = dataset.SpeechDataset(constants)
-    data_loader = dataset.create_data_loader(data, constants.batch_size)
+    data = preprocess.iterate_all_files(constants)
+    data_set = dataset.SpeechDataset(data)
+    data_loader = dataset.create_data_loader(data_set, constants.batch_size, shuffle=True)
 
     # Model
     print(f"Using {device} device")
@@ -23,3 +24,7 @@ def train_pipeline():
         os.makedirs(constants.model_save_loc)
     torch.save(vm_net.state_dict(), constants.model_save_loc + "/vm_model.pth")
     print(f"Trained model is saved at {constants.model_save_loc}")
+    
+    
+def test_pipeline():
+    pass

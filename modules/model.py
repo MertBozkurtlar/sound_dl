@@ -12,10 +12,13 @@ class Von_Mises_Network(nn.Module):
         self.flatten = nn.Flatten()
 
     def forward(self, x):
-        x = torch.cat([torch.sin(x), torch.cos(x)], axis=3)
+        # Paper
+        x = torch.cat([torch.sin(x), torch.cos(x)], axis=2)
         x = self.flatten(x)
         x = self.fc1(x)
         x = self.sigmoid(x)
+        # End of paper
+        x = self.bn1(x)
         x = self.fc2(x)
         x = self.softmax(x)
         return x

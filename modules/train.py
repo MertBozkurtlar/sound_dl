@@ -2,7 +2,6 @@ from torch.cuda import is_available
 from tqdm import tqdm
 
 def train_epoch(model, data_loader, optimizer, loss_fn, device):
-    print(len(data_loader.dataset))
     for input, target in tqdm(data_loader):
         input, target = input.to(device), target.to(device)
 
