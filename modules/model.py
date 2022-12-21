@@ -2,13 +2,14 @@ import torch
 from torch import nn
 
 class VonMisesNetwork(nn.Module):
-    def __init__(self, size_in, size_hidden=256, size_out=72) -> None:
+    def __init__(self, size_in, size_hidden_a=512, size_hidden_b=256, size_out=72) -> None:
         super().__init__()
-        self.vmLayer = VonMisesLayer(size_in, size_hidden)
-        self.fc = nn.Linear(size_hidden, size_out)
+        self.vmLayer = VonMisesLayer(size_in, size_hidden_a)
+        self.fc1 = nn.Linear(size_hidden_a, size_hidden_b)
+        self.fc2 = nn.Linear(size_hidden_b, size_out)
         self.relu = nn.ReLU()
         self.softmax = nn.Softmax(dim=1)
-        self.bn = nn.BatchNorm1d(size_hidden)
+        self.bn = nn.BatchNorm1d(size_hidden_a)
         self.flatten = nn.Flatten()
 
     def forward(self, x):
@@ -16,7 +17,9 @@ class VonMisesNetwork(nn.Module):
         x = self.vmLayer(x)
         x = self.relu(x)
         x = self.bn(x)
-        x = self.fc(x)
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
         x = self.softmax(x)
         return x
     

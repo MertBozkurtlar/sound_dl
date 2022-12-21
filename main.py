@@ -16,8 +16,8 @@ def train_pipeline():
         # Clear the data held on memory
         del data
         # Save dataset
-        torch.save(data_set, constants.model_save_loc + "/dataset.pt")
-        print(f"Loaded data is saved at {constants.model_save_loc}")
+        # torch.save(data_set, constants.model_save_loc + "/dataset.pt")
+        # print(f"Loaded data is saved at {constants.model_save_loc}")
     else:
         # If dataset already exist at path, load it instead
         data_set = torch.load(constants.model_save_loc + "/dataset.pt")

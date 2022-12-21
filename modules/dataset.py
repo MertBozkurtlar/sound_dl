@@ -1,7 +1,7 @@
 from torch.cuda import is_available
 from torch.utils.data import Dataset, DataLoader
 import torch
-import constants
+from modules import constants
 
 
 class SpeechDataset(Dataset):
