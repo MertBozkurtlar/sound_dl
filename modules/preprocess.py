@@ -22,6 +22,7 @@ def iterate_all_files(constants):
     phase_array = []
     label_array = []
     
+    print("Starting to load files..")
     for i in tqdm(range(length)):
         index = handle_index(i, noise_type, snr, degree)
         noise_type_ind, snr_ind, sample_ind = index
@@ -41,6 +42,7 @@ def iterate_all_files(constants):
         
     phase_array = np.array(phase_array).reshape(-1, constants.num_of_channels, (constants.stft_frame_size // 2) + 1)
     label_array = np.array(label_array).reshape(-1)
+    print("Files are loaded")
     return phase_array, label_array
 
 def get_phase(wave, sampling_freq, stft_frame_size, stft_hop_size):

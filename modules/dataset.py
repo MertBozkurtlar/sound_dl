@@ -1,13 +1,7 @@
 from torch.cuda import is_available
 from torch.utils.data import Dataset, DataLoader
-import torchaudio
 import torch
-from torch.nn import functional as F
-import numpy as np
-import math
-import random
-import librosa
-import scipy
+import constants
 
 
 class SpeechDataset(Dataset):
@@ -15,7 +9,7 @@ class SpeechDataset(Dataset):
         super().__init__()
         self.device = 'cuda' if is_available() else 'cpu'
         self.data = data
-        self.degree_step = 5
+        self.degree_step = constants.degree_step
 
     def __len__(self):
         return len(self.data[1])
@@ -27,7 +21,8 @@ class SpeechDataset(Dataset):
         spec.to(self.device)
         label.to(self.device)
         return spec, label
-        
+    
+    # Encode the label in one-hot vector 
     def encode_label(self, label):
         label = int(label / self.degree_step)
         vector = torch.zeros(int(360 / self.degree_step))
