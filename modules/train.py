@@ -6,11 +6,11 @@ def train_epoch(model, data_loader, optimizer, loss_fn, device):
         input, target = input.to(device), target.to(device)
 
         # forward pass
+        optimizer.zero_grad()
         prediction = model(input)
         loss = loss_fn(prediction, target)
 
         # backpropagation
-        optimizer.zero_grad()
         loss.backward()
         optimizer.step()
     print(f"Loss: {loss.item()}")

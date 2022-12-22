@@ -39,23 +39,25 @@ def train_pipeline():
     print(f"Trained model is saved at {constants.model_save_loc}")
     
     
-def test_pipeline(test_iter):
+def test_pipeline():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
-    data = preprocess.iterate_all_files(constants, test=1)
+    data = preprocess.iterate_all_files(constants)
     data_set = dataset.SpeechDataset(data)
-    data_loader = torch.utils.data.DataLoader(data_set)
+    data_loader = dataset.create_data_loader(data_set, 1, shuffle=True)
     # Model #
-    print(f"Testing for {test_iter} iterations")
     print(f"Using {device} device")
     vm_net = model.VonMisesNetwork(size_in=constants.input_size).to(device)
     
     vm_net.load_state_dict(torch.load(constants.model_save_loc + "/vm_model.pth"))
-    model.eval()
     
-    # Predict
-    for input, target in data_loader:
-        input, target = input.to(device), target.to(device)
-        with torch.no_grad():
-            prediction = vm_net(input)
-        print(f"Prediction is: {prediction} ; Target is: {target}")
+    vm_net.eval()
+    return vm_net, data_loader
+
+def get_next_pred(model, dataloader):
+    inputs, label = next(iter(dataloader))
+    inputs = inputs.to("cuda")
+    label = label.argmax() * 5
+    pred = model(inputs)
+    pred = pred.argmax().item() * 5
+    print(f"Predicted: {pred} ; Actual: {label}")
