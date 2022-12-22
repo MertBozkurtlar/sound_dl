@@ -6,11 +6,10 @@ from torch.nn import functional as F
 import numpy as np
 import math
 import random
-import librosa
 import scipy
 from tqdm import tqdm
 
-def iterate_all_files(constants):
+def iterate_all_files(constants, test=0):
     path = constants.data_loc
     noise_type = constants.noise_type_use
     snr = constants.SNR_use
@@ -21,9 +20,11 @@ def iterate_all_files(constants):
     
     phase_array = []
     label_array = []
+
+    iterations = range(length) if test == 0 else range(test)
     
     print("Starting to load files..")
-    for i in tqdm(range(length)):
+    for i in tqdm(iterations):
         index = handle_index(i, noise_type, snr, degree)
         noise_type_ind, snr_ind, sample_ind = index
         sample_noise_type = noise_type[noise_type_ind]
