@@ -1,6 +1,10 @@
-from modules import dataset, model, train, constants, preprocess
+from modules import dataset, model, train, preprocess, input
+from modules import constants
 import torch
 import os
+import time
+import numpy as np
+import scipy
 
 def train_pipeline():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -63,3 +67,38 @@ def get_next_pred(model, dataloader):
     pred = model(inputs)
     pred = pred.argmax().item() * 5
     print(f"Predicted: {pred} ; Actual: {label}")
+    
+
+def pred_callback(rec):
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    f, t, Zxx = scipy.signal.stft(rec,
+            fs=constants.sampling_freq,
+            window='hann',
+            nperseg=constants.stft_frame_size,
+            noverlap=constants.stft_hop_size,
+            detrend=False,
+            return_onesided=True,
+            boundary='zeros',
+            padded=True)
+    
+    phi = np.angle(Zxx)
+    phi = np.transpose(phi, axes=[2,0,1])
+    phi = torch.from_numpy(phi).to(device)
+    
+    # Model #
+    print(f"Using {device} device")
+    vm_net = model.VonMisesNetwork(size_in=constants.input_size).to(device)
+    vm_net.load_state_dict(torch.load(constants.model_save_loc + "/vm_model.pth"))
+    vm_net.eval()
+    
+    pred = vm_net(phi)
+    pred = np.array([i.argmax().item() * 5 for i in pred])
+    pred = np.deg2rad(pred)
+    pred = scipy.stats.circmean(pred)
+    pred = np.rad2deg(pred)
+    print(f"Predicted: {pred}")
+    
+    time.sleep(5)
+    
+def mic_pipeline():
+    input.input_init(pred_callback)
