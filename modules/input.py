@@ -79,6 +79,6 @@ def callback(rec):
     plt.plot(rec[0])
     plt.pause(0.1)
     plt.clf()
-    plt.show()
+    plt.show(block=False)
     
 input_init(callback) 
