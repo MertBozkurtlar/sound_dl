@@ -3,11 +3,23 @@ from pyaudio import PyAudio, paInt16, paContinue, paComplete, paFloat32
 import numpy as np
 import time
 import queue
+import matplotlib.pyplot as plt
 #import cWelch
 
+plotValue = 0
+VADisOff = 0
+q1 = queue.Queue(maxsize = 4) # Queue object for holding data in short average queue [SAQ]
+pa = PyAudio() # PyAudio object (audio recording)
+nChannels = 8 # Number of channels
+fs = 48000 # Sampling rate
+CHUNK = 4096 # FFT length
+counter = 0 # Audio record length counter
+stop = []
+reset = []
 
-# Callback function for PyAudio recording 
-def callback(in_data, frame_count, time_info, flag):
+
+def stream_callback(in_data, frame_count, time_info, flag):
+    '''Callback function for PyAudio recording '''
     global counter, q1, initCounter, initComplete, CHUNK
     # Flag to indicate that new audio came in before the callback loop was able to finish processing the tasks
     if flag:
@@ -17,7 +29,8 @@ def callback(in_data, frame_count, time_info, flag):
 
     # Convert audio data format to numpy
     numpydata = np.frombuffer(in_data, dtype=np.int16)
-    numpydata.shape = (CHUNK, nChannels)
+    numpydata.shape = (CHUNK,nChannels)
+    numpydata = np.transpose(numpydata, axes=[1,0])
 
     if q1.full():
         q1.get() # Get oldest audio segment out
@@ -31,32 +44,41 @@ def callback(in_data, frame_count, time_info, flag):
     return None, paContinue
 
 
-plotValue = 0
-VADisOff = 0
-q1 = queue.Queue(maxsize = 4) # Queue object for holding data in short average queue [SAQ]
-pa = PyAudio() # PyAudio object (audio recording)
-nChannels = 8 # Number of channels
-fs = 48000 # Sampling rate
-CHUNK = 4096 # FFT length
-counter = 0 # Audio record length counter
-stop = []
-reset = []
+def input_init(callback):
+    '''
+    Initiliazes the input stream
+    
+    Parameters:
+        callback: The function to be called in the callback loop. Should take a parameter for recording data
+    '''
+    print("Initialising pyaudio")
+    #Initialise PyAudio stream object
+    stream = pa.open(format =paInt16,
+                    channels = nChannels,
+                    rate = fs,
+                    input = True,
+                    #input_device_index=1, # IMPORTANT: This sets which input device to use
+                    frames_per_buffer = CHUNK,
+                    stream_callback = stream_callback)
 
-print("Initialising pyaudio")
-#Initialise PyAudio stream object
-stream = pa.open(format =paInt16,
-                channels = nChannels,
-                rate = fs,
-                input = True,
-                #input_device_index=1, # IMPORTANT: This sets which input device to use
-                frames_per_buffer = CHUNK,
-                stream_callback = callback)
+    startTime = time.localtime()
+    startDay = str(time.strftime('%d-%b-%Y',startTime))
+    stream.start_stream() # Start the audio stream
 
-startTime = time.localtime()
-startDay = str(time.strftime('%d-%b-%Y',startTime))
-stream.start_stream() # Start the audio stream
+    haltFlag = 0
+    while stream.is_active():
+        rec = q1.get()
+        callback(rec)
 
-haltFlag = 0
-while stream.is_active():
-    time.sleep(0.1)
-    rec = q1.get()
+
+# Example
+
+# Callback function to plot the mic input
+def callback(rec):
+    print(rec.shape)
+    plt.plot(rec[0])
+    plt.pause(0.1)
+    plt.clf()
+    plt.show()
+    
+input_init(callback) 

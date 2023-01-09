@@ -20,8 +20,8 @@ SNR = {
 }
 degree_step = 5 
 
-noise_type_use = ["white_noise"]
-SNR_use = [40]
+noise_type_use = ["bus", "cafe", "pedestrian", "street", "white_noise"]
+SNR_use = [0, 20, 40]
 
 # Audio Data #
 sampling_freq = 16000 # Hz
@@ -35,5 +35,5 @@ num_of_channels = 8
 # input_size = int((((sampling_freq * duration) / stft_hop_size) + 1) *  length *  (stft_frame_size // 2 + 1) * num_of_channels)\
 input_size = num_of_channels * (stft_frame_size // 2 + 1)
 batch_size = 8196
-epochs = 40
+epochs = 30
 learning_rate = 0.01

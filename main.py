@@ -37,6 +37,8 @@ def train_pipeline():
     # Save the model #
     torch.save(vm_net.state_dict(), constants.model_save_loc + "/vm_model.pth")
     print(f"Trained model is saved at {constants.model_save_loc}")
+
+    return vm_net, data_loader
     
     
 def test_pipeline():
