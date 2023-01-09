@@ -5,6 +5,8 @@ import os
 import time
 import numpy as np
 import scipy
+import serial
+import sys, time
 
 def train_pipeline():
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -68,9 +70,16 @@ def get_next_pred(model, dataloader):
     pred = pred.argmax().item() * 5
     print(f"Predicted: {pred} ; Actual: {label}")
     
+# Real time data #
 
 def pred_callback(rec):
+    '''Callback function to be called by input.input_init'''
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    
+    # Wait for 5 seconds    
+    time.sleep(5)
+    
+    # Get stft of mic recording
     f, t, Zxx = scipy.signal.stft(rec,
             fs=constants.sampling_freq,
             window='hann',
@@ -91,6 +100,7 @@ def pred_callback(rec):
     vm_net.load_state_dict(torch.load(constants.model_save_loc + "/vm_model.pth"))
     vm_net.eval()
     
+    # Prediction
     pred = vm_net(phi)
     pred = np.array([i.argmax().item() * 5 for i in pred])
     pred = np.deg2rad(pred)
@@ -98,7 +108,28 @@ def pred_callback(rec):
     pred = np.rad2deg(pred)
     print(f"Predicted: {pred}")
     
-    time.sleep(5)
+    # If turntable is connected, rotate it by prediction
+    global turntable
+    if not turntable:
+        turn_table(int(pred))
+
+def turn_table(degree):
+    '''Rotates the turn table by given degrees'''
+    #400[/deg] (144000 -> 360deg)
+    ser = serial.Serial('/dev/ttyUSB0', baudrate=38400)
+    conv_degree = -degree * 400
+    code = "$I" + str(conv_degree) + ",3¥r¥n"
+    ser.write(b'0=250¥r¥n')
+    ser.write(b'1=1000¥r¥n')
+    ser.write(b'3=100¥r¥n')
+    ser.write(b'5=50¥r¥n')
+    ser.write(b'8=32000¥r¥n')
+    ser.write(b'$O¥r¥n')
+
+    ser.write(code.encode())
+    ser.close()
     
-def mic_pipeline():
+def mic_turntable_pipeline():
+    global turntable
+    turntable = False
     input.input_init(pred_callback)

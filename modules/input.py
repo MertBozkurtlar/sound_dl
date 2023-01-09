@@ -53,6 +53,7 @@ def input_init(callback):
     
     Parameters:
         callback: The function to be called in the callback loop. Should take a parameter for recording data
+        turntable: Is turntable connected
     '''
     print("Initialising pyaudio")
     #Initialise PyAudio stream object
