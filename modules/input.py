@@ -2,8 +2,11 @@
 from pyaudio import PyAudio, paInt16, paContinue, paComplete, paFloat32
 import numpy as np
 import time
+from torch.nn import functional as F
 import queue
 import matplotlib.pyplot as plt
+import scipy
+import torchaudio
 #import cWelch
 
 plotValue = 0
@@ -11,8 +14,8 @@ VADisOff = 0
 q1 = queue.Queue(maxsize = 4) # Queue object for holding data in short average queue [SAQ]
 pa = PyAudio() # PyAudio object (audio recording)
 nChannels = 8 # Number of channels
-fs = 48000 # Sampling rate
-CHUNK = 4096 # FFT length
+fs = 16000 # Sampling rate
+CHUNK = 512 * 8 # FFT length
 counter = 0 # Audio record length counter
 stop = []
 reset = []
@@ -50,6 +53,7 @@ def input_init(callback):
     
     Parameters:
         callback: The function to be called in the callback loop. Should take a parameter for recording data
+        turntable: Is turntable connected
     '''
     print("Initialising pyaudio")
     #Initialise PyAudio stream object
@@ -71,14 +75,20 @@ def input_init(callback):
         callback(rec)
 
 
-# Example
-
-# Callback function to plot the mic input
-def callback(rec):
-    print(rec.shape)
-    plt.plot(rec[0])
-    plt.pause(0.1)
-    plt.clf()
-    plt.show()
+def callback(signal):
+    time.sleep(5)
+    f, t, Zxx = scipy.signal.stft(signal,
+            fs=constants.sampling_freq,
+            window='hann',
+            nperseg=constants.stft_frame_size,
+            noverlap=constants.stft_hop_size,
+            detrend=False,
+            return_onesided=True,
+            boundary='zeros',
+            padded=True)
+    # plt.plot(f, Zxx[0])
+    # plt.pause(0.1)
+    # plt.clf()
+    # plt.show(block=False)
     
-input_init(callback) 
+# input_init(callback) 

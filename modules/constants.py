@@ -20,8 +20,8 @@ SNR = {
 }
 degree_step = 5 
 
-noise_type_use = ["bus", "cafe", "pedestrian", "street", "white_noise"]
-SNR_use = [0, 20, 40]
+noise_type_use = ["bus"]
+SNR_use = [0]
 
 # Audio Data #
 sampling_freq = 16000 # Hz
