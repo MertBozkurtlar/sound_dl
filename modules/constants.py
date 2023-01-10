@@ -26,7 +26,7 @@ SNR_use = [0]
 # Audio Data #
 sampling_freq = 16000 # Hz
 split_threshold = 8000 # Minimum time between spoken part to be considered silent
-duration = 270 # secs
+duration = 3 # secs
 stft_frame_size = 512
 stft_hop_size = 256
 volume_threshold = -50 # dBt
