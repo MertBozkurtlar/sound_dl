@@ -1,4 +1,4 @@
-from modules import dataset, model, train, preprocess, input
+from modules import model, train, input, dataset
 from modules import constants
 import torch
 import os
@@ -9,6 +9,7 @@ import serial
 import sys, time
 
 def train_pipeline():
+    '''Pipeline to train the model'''
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     if not os.path.exists(constants.model_save_loc):
         os.makedirs(constants.model_save_loc)
@@ -48,6 +49,10 @@ def train_pipeline():
     
     
 def test_pipeline():
+    '''
+    Pipeline to test the model
+    Loads the dataset and model
+    '''
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     data = preprocess.iterate_all_files(constants)
@@ -63,6 +68,10 @@ def test_pipeline():
     return vm_net, data_loader
 
 def get_next_pred(model, dataloader):
+    '''
+    Function to test the model
+    Feeds the model with next data on loader and prints out the prediction
+    '''
     inputs, label = next(iter(dataloader))
     inputs = inputs.to("cuda")
     label = label.argmax() * 5
@@ -70,10 +79,24 @@ def get_next_pred(model, dataloader):
     pred = pred.argmax().item() * 5
     print(f"Predicted: {pred} ; Actual: {label}")
     
-# Real time data #
+    
+def mic_turntable_pipeline():
+    '''
+    Pipeline to run the program on realtime mode
+    Starts the microphone stream, and feeds it with the callback function that will be called in the input loop
+    '''
+    global turntable
+    turntable = False
+    input.input_init(pred_callback)
+
+    
 
 def pred_callback(rec):
-    '''Callback function to be called by input.input_init'''
+    '''
+    Callback function to be called by (function) input.input_init
+    Takes the stft of recorded audio and feeds it to the model,
+    then turns the turntable by the predicted angle
+    '''
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
     
     # Wait for 5 seconds    
@@ -114,7 +137,10 @@ def pred_callback(rec):
         turn_table(int(pred))
 
 def turn_table(degree):
-    '''Rotates the turn table by given degrees'''
+    '''
+    Helper function for (function) pred_callback
+    Opens a serial connection to turntable and rotates it by given degree
+    '''
     #400[/deg] (144000 -> 360deg)
     ser = serial.Serial('/dev/ttyUSB0', baudrate=38400)
     conv_degree = -degree * 400
@@ -128,8 +154,3 @@ def turn_table(degree):
 
     ser.write(code.encode())
     ser.close()
-    
-def mic_turntable_pipeline():
-    global turntable
-    turntable = False
-    input.input_init(pred_callback)

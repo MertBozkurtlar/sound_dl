@@ -52,8 +52,8 @@ def input_init(callback):
     Initiliazes the input stream
     
     Parameters:
-        callback: The function to be called in the callback loop. Should take a parameter for recording data
-        turntable: Is turntable connected
+        -callback: The function to be called in the input loop. Should take a parameter for recording data
+        -turntable: Is turntable connected
     '''
     print("Initialising pyaudio")
     #Initialise PyAudio stream object
@@ -73,22 +73,3 @@ def input_init(callback):
     while stream.is_active():
         rec = q1.get()
         callback(rec)
-
-
-def callback(signal):
-    time.sleep(5)
-    f, t, Zxx = scipy.signal.stft(signal,
-            fs=constants.sampling_freq,
-            window='hann',
-            nperseg=constants.stft_frame_size,
-            noverlap=constants.stft_hop_size,
-            detrend=False,
-            return_onesided=True,
-            boundary='zeros',
-            padded=True)
-    # plt.plot(f, Zxx[0])
-    # plt.pause(0.1)
-    # plt.clf()
-    # plt.show(block=False)
-    
-# input_init(callback) 
