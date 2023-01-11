@@ -33,3 +33,21 @@ class SpeechDataset(Dataset):
 def create_data_loader(train_data, batch_size, shuffle):
     train_dataloader = DataLoader(train_data, batch_size=batch_size, shuffle=shuffle)
     return train_dataloader
+
+
+# # Data #
+#     if not os.path.exists(constants.model_save_loc + "/dataset.pt"):
+#         # Load the phase (phi) data
+#         data = preprocess.iterate_all_files(constants)
+#         # Create the dataset
+#         data_set = dataset.SpeechDataset(data)
+#         # Clear the data held on memory
+#         del data
+#         # Save dataset
+#         # torch.save(data_set, constants.model_save_loc + "/dataset.pt")
+#         # print(f"Loaded data is saved at {constants.model_save_loc}")
+#     else:
+#         # If dataset already exist at path, load it instead
+#         data_set = torch.load(constants.model_save_loc + "/dataset.pt")
+#         print(f"Loaded data from {constants.model_save_loc}")
+#     # Feed the data loader

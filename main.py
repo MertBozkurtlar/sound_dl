@@ -7,41 +7,28 @@ import numpy as np
 import scipy
 import serial
 import sys, time
+from torch.utils.data import DataLoader
 
 def train_pipeline():
     '''Pipeline to train the model'''
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = constants.device
     if not os.path.exists(constants.model_save_loc):
         os.makedirs(constants.model_save_loc)
     
-    # Data #
-    if not os.path.exists(constants.model_save_loc + "/dataset.pt"):
-        # Load the phase (phi) data
-        data = preprocess.iterate_all_files(constants)
-        # Create the dataset
-        data_set = dataset.SpeechDataset(data)
-        # Clear the data held on memory
-        del data
-        # Save dataset
-        # torch.save(data_set, constants.model_save_loc + "/dataset.pt")
-        # print(f"Loaded data is saved at {constants.model_save_loc}")
-    else:
-        # If dataset already exist at path, load it instead
-        data_set = torch.load(constants.model_save_loc + "/dataset.pt")
-        print(f"Loaded data from {constants.model_save_loc}")
-    # Feed the data loader
-    data_loader = dataset.create_data_loader(data_set, constants.batch_size, shuffle=True)
+    # Load the data
+    data = dataset.dataset_pipeline()
+    data_loader = DataLoader(data, constants.batch_size, shuffle=True)
 
-    # Model #
+    # Set the model
     print(f"Using {device} device")
     vm_net = model.VonMisesNetwork(size_in=constants.input_size).to(device)
     loss_fn = torch.nn.CrossEntropyLoss()
     optimizer = torch.optim.Adam(vm_net.parameters(), lr=constants.learning_rate)
 
-    # Train #
+    # Train the model
     train.train_model(vm_net, data_loader, optimizer, loss_fn, constants.epochs)
 
-    # Save the model #
+    # Save the model
     torch.save(vm_net.state_dict(), constants.model_save_loc + "/vm_model.pth")
     print(f"Trained model is saved at {constants.model_save_loc}")
 
@@ -53,33 +40,42 @@ def test_pipeline():
     Pipeline to test the model
     Loads the dataset and model
     '''
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    device = constants.device
     
-    data = preprocess.iterate_all_files(constants)
-    data_set = dataset.SpeechDataset(data)
-    data_loader = dataset.create_data_loader(data_set, 1, shuffle=True)
-    # Model #
+    # Load the data
+    data = dataset.dataset_pipeline()
+    data_loader = DataLoader(data, constants.batch_size, shuffle=True)
+    
+    # Load the model
     print(f"Using {device} device")
     vm_net = model.VonMisesNetwork(size_in=constants.input_size).to(device)
-    
     vm_net.load_state_dict(torch.load(constants.model_save_loc + "/vm_model.pth"))
-    
+    # Set the model to evaluation mode
     vm_net.eval()
+    
     return vm_net, data_loader
+
 
 def get_next_pred(model, dataloader):
     '''
     Function to test the model
     Feeds the model with next data on loader and prints out the prediction
     '''
+    device = constants.device
+    
+    # Get the next data in queue
     inputs, label = next(iter(dataloader))
-    inputs = inputs.to("cuda")
+    inputs = inputs.to(device)
     label = label.argmax() * 5
+    
+    # Get the prediction
     pred = model(inputs)
     pred = pred.argmax().item() * 5
+    
+    # Print the prediction
     print(f"Predicted: {pred} ; Actual: {label}")
     
-    
+
 def mic_turntable_pipeline():
     '''
     Pipeline to run the program on realtime mode
@@ -90,7 +86,6 @@ def mic_turntable_pipeline():
     input.input_init(pred_callback)
 
     
-
 def pred_callback(rec):
     '''
     Callback function to be called by (function) input.input_init
@@ -135,7 +130,9 @@ def pred_callback(rec):
     global turntable
     if not turntable:
         turn_table(int(pred))
+        
 
+#TODO: To be implemented
 def turn_table(degree):
     '''
     Helper function for (function) pred_callback
@@ -154,3 +151,4 @@ def turn_table(degree):
 
     ser.write(code.encode())
     ser.close()
+    

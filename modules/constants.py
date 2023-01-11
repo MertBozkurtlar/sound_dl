@@ -34,6 +34,7 @@ num_of_channels = 8
 
 # Model #
 # input_size = int((((sampling_freq * duration) / stft_hop_size) + 1) *  length *  (stft_frame_size // 2 + 1) * num_of_channels)\
+device = 'cuda' if torch.cuda.is_available() else 'cpu'
 input_size = num_of_channels * (stft_frame_size // 2 + 1)
 batch_size = 8196
 epochs = 30
