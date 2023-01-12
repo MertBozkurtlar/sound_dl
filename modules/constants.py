@@ -1,4 +1,4 @@
-import constants
+import torch
 
 # File System #
 data_loc = "/misc/export3/morimoto/data/wave/rec/morimoto"
