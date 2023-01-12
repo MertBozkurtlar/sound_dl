@@ -138,18 +138,18 @@ def turn_table(degree):
     Helper function for (function) pred_callback
     Opens a serial connection to turntable and rotates it by given degree
     '''
-    import serial
-    #400[/deg] (144000 -> 360deg)
-    ser = serial.Serial('/dev/ttyUSB0', baudrate=38400)
-    conv_degree = -degree * 400
-    code = "$I" + str(conv_degree) + ",3¥r¥n"
-    ser.write(b'0=250¥r¥n')
-    ser.write(b'1=1000¥r¥n')
-    ser.write(b'3=100¥r¥n')
-    ser.write(b'5=50¥r¥n')
-    ser.write(b'8=32000¥r¥n')
-    ser.write(b'$O¥r¥n')
+    # import serial
+    # #400[/deg] (144000 -> 360deg)
+    # ser = serial.Serial('/dev/ttyUSB0', baudrate=38400)
+    # conv_degree = -degree * 400
+    # code = "$I" + str(conv_degree) + ",3¥r¥n"
+    # ser.write(b'0=250¥r¥n')
+    # ser.write(b'1=1000¥r¥n')
+    # ser.write(b'3=100¥r¥n')
+    # ser.write(b'5=50¥r¥n')
+    # ser.write(b'8=32000¥r¥n')
+    # ser.write(b'$O¥r¥n')
 
-    ser.write(code.encode())
-    ser.close()
+    # ser.write(code.encode())
+    # ser.close()
     
