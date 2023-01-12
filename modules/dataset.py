@@ -10,10 +10,11 @@ import constants
 import scipy
 import torch
 import os
+from modules import constants
 
 def dataset_pipeline():
     '''Pipeline for preprocessing and loading audio data, and creatingn the dataset'''
-    timings = get_splits(constants)
+    timings = get_splits()
     audios = load_audios(timings)
     data = preprocess_all_audios(audios)
     dataset = Dataset(data)
@@ -45,12 +46,9 @@ class Dataset(nn.Module):
         return vector
 
 
-def get_splits(constants: object) -> dict:
+def get_splits() -> dict:
     '''
     Get timings of non silent data for each degree from clean record
-    
-    Parameters:
-        -constants: Constants module
     
     Returns:
         Dictionary with timings for each degree. Degree -> Timings array
@@ -62,8 +60,8 @@ def get_splits(constants: object) -> dict:
     timings_dic = dict()
     
     print("Getting non silent audio timings")   
-    for degree in tqdm(range(360 / constants.degree_step)):
-        file_path = os.path.join(constants.data_loc, constants.noise_type[noise_type], constants.SNR(snr),  f"sp-deg_{(degree * constants.degree_step):03d}", '.wav')
+    for degree in tqdm(range(int(360 / constants.degree_step))):
+        file_path = os.path.join(constants.data_loc, constants.noise_type[noise_type], constants.SNR[snr],  f"sp-deg_{(degree * constants.degree_step):03d}.wav")
         signal, _ = torchaudio.load(file_path)
         timings_arr = librosa.effects.split(signal, top_db=50)
         # Join consequent timings if time between is lower than threshold
@@ -94,13 +92,13 @@ def load_audios(timings_dic: dict) -> list:
     audios = []
     
     print("Starting to load the audios")
-    for i in tqdm(length):
+    for i in tqdm(range(length)):
         index = handle_index(i, noise_type, snr, degree)
         noise_type_ind, snr_ind, sample_ind = index
         sample_noise_type = noise_type[noise_type_ind]
         sample_snr = snr[snr_ind]
         sample_degree = degree[sample_ind]
-        file_path = os.path.join(path, constants.noise_type[sample_noise_type], constants.SNR[sample_snr], f"sp-deg_{sample_degree:03d}", '.wav')
+        file_path = os.path.join(path, constants.noise_type[sample_noise_type], constants.SNR[sample_snr], f"sp-deg_{sample_degree:03d}.wav")
          
         for timing in timings_dic[sample_degree]:
             frame_offset, num_frames = timing[0], timing[1] - timing[0] 
@@ -186,5 +184,3 @@ def handle_index(index, noise_type, snr, degree):
     snr_ind = math.floor((index - (noise_type_ind) * (len(snr) * len(degree))) / len(degree))
     sample_ind = math.floor(index - ((noise_type_ind * len(snr)) + snr_ind) * len(degree))
     return (noise_type_ind, snr_ind, sample_ind)
-
-dataset = dataset_pipeline()

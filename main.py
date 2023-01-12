@@ -1,11 +1,10 @@
-from modules import model, train, input, dataset
+from modules import model, train, dataset
 from modules import constants
 import torch
 import os
 import time
 import numpy as np
 import scipy
-import serial
 import sys, time
 from torch.utils.data import DataLoader
 
@@ -81,6 +80,7 @@ def mic_turntable_pipeline():
     Pipeline to run the program on realtime mode
     Starts the microphone stream, and feeds it with the callback function that will be called in the input loop
     '''
+    from modules import input
     global turntable
     turntable = False
     input.input_init(pred_callback)
@@ -138,6 +138,7 @@ def turn_table(degree):
     Helper function for (function) pred_callback
     Opens a serial connection to turntable and rotates it by given degree
     '''
+    import serial
     #400[/deg] (144000 -> 360deg)
     ser = serial.Serial('/dev/ttyUSB0', baudrate=38400)
     conv_degree = -degree * 400
