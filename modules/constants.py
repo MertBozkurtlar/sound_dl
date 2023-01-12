@@ -1,3 +1,5 @@
+import constants
+
 # File System #
 data_loc = "/misc/export3/morimoto/data/wave/rec/morimoto"
 model_save_loc = "model"
