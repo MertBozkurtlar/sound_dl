@@ -49,4 +49,4 @@ class AngularLoss(nn.Module):
         super().__init__()
     
     def forward(self, preds, targets):
-        return torch.sum(2*(1-torch.cos((preds * torch.pi/180)-(targets * torch.pi/180))))
+        return torch.mean(2*(1-torch.cos((preds * torch.pi/180)-(targets * torch.pi/180))))
