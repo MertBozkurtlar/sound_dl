@@ -2,7 +2,7 @@ import torch
 
 # File System #
 data_loc = "/misc/export3/morimoto/data/wave/rec/morimoto"
-model_save_loc = "model"
+model_save_loc = "model_angularloss"
 noise_type = {
     "bus" : "BUS",
     "cafe" : "CAF",
@@ -22,8 +22,11 @@ SNR = {
 }
 degree_step = 5 
 
-noise_type_use = ["bus"]
-SNR_use = [0]
+# noise_type_use = ["bus", "cafe", "pedestrian", "street", "white_noise"]
+# SNR_use = [0, 20, 40]
+
+noise_type_use = ["white_noise"]
+SNR_use = [60]
 
 # Audio Data #
 sampling_freq = 16000 # Hz

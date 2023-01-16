@@ -1,0 +1,93 @@
+WARNING:root:Starting to train the model
+WARNING:root:Epoch: 0
+WARNING:root:Starting to train the model
+WARNING:root:Epoch: 0
+WARNING:root:Loss: 29489500.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 1
+WARNING:root:Loss: 30457204.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 2
+WARNING:root:Loss: 30233916.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 3
+WARNING:root:Loss: 29361556.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 4
+WARNING:root:Loss: 30800476.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 5
+WARNING:root:Loss: 30771208.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 6
+WARNING:root:Loss: 30457996.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 7
+WARNING:root:Loss: 30294632.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 8
+WARNING:root:Loss: 30122420.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 9
+WARNING:root:Loss: 30664848.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 10
+WARNING:root:Loss: 29820120.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 11
+WARNING:root:Loss: 30633124.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 12
+WARNING:root:Loss: 31171356.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 13
+WARNING:root:Loss: 30300384.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 14
+WARNING:root:Loss: 31374958.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 15
+WARNING:root:Loss: 30302434.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 16
+WARNING:root:Loss: 30270056.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 17
+WARNING:root:Loss: 31166632.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 18
+WARNING:root:Loss: 30678832.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 19
+WARNING:root:Loss: 30169766.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 20
+WARNING:root:Loss: 30636096.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 21
+WARNING:root:Loss: 29969996.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 22
+WARNING:root:Loss: 30058868.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 23
+WARNING:root:Loss: 30075024.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 24
+WARNING:root:Loss: 30849980.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 25
+WARNING:root:Loss: 31103646.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 26
+WARNING:root:Loss: 30398326.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 27
+WARNING:root:Loss: 30556264.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 28
+WARNING:root:Loss: 30568380.0
+WARNING:root:------------------------
+WARNING:root:Epoch: 29
+WARNING:root:Loss: 30110230.0
+WARNING:root:------------------------

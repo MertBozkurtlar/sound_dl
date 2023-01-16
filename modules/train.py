@@ -1,5 +1,6 @@
 from torch.cuda import is_available
 from tqdm import tqdm
+import logging
 
 def train_epoch(model, data_loader, optimizer, loss_fn, device):
     '''Trains a single epoch, helper function for (function) train_model'''
@@ -15,12 +16,15 @@ def train_epoch(model, data_loader, optimizer, loss_fn, device):
         loss.backward()
         optimizer.step()
     print(f"Loss: {loss.item()}")
+    logging.warning(f"Loss: {loss.item()}")
 
 def train_model(model, data_loader, optimizer, loss_fn, epochs):
     '''Trains the model for all epochs'''
     device = 'cuda' if is_available() else 'cpu'
     for epoch in range(epochs):
         print(f"Epoch: {epoch}")
+        logging.warning(f"Epoch: {epoch}")
         train_epoch(model, data_loader, optimizer, loss_fn, device)
         print("------------------------")
+        logging.warning("------------------------")
     print("Finished training")

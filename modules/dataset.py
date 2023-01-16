@@ -21,18 +21,20 @@ def dataset_pipeline():
 
 
 class Dataset(nn.Module):
-    def __init__(self, data) -> None:
+    def __init__(self, data, classification=False) -> None:
         super().__init__()
         self.device = 'cuda' if is_available() else 'cpu'
         self.data = data
-        self.degree_step = 5
+        self.classification = classification
+        self.degree_step = constants.degree_step
     def __len__(self):
         return len(self.data[1])
 
     def __getitem__(self, index):
         spec, label = self.data
         spec = torch.from_numpy(spec[index])
-        label = self.encode_label(label[index])
+        # If task type is set to classification encode the label in one hot vector
+        label = self.encode_label(label[index]) if self.classification else torch.tensor(label[index])
         spec.to(self.device)
         label.to(self.device)
         return spec, label

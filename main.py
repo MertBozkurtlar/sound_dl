@@ -7,12 +7,15 @@ import numpy as np
 import scipy
 import sys, time
 from torch.utils.data import DataLoader
+import logging
 
 def train_pipeline():
     '''Pipeline to train the model'''
     device = constants.device
     if not os.path.exists(constants.model_save_loc):
         os.makedirs(constants.model_save_loc)
+    logging.basicConfig(filename=f"{constants.model_save_loc}/log.txt")
+    logging.warning("Starting to train the model")
     
     # Load the data
     data = dataset.dataset_pipeline()
@@ -21,7 +24,7 @@ def train_pipeline():
     # Set the model
     print(f"Using {device} device")
     vm_net = model.VonMisesNetwork(size_in=constants.input_size).to(device)
-    loss_fn = torch.nn.CrossEntropyLoss()
+    loss_fn = model.AngularLoss()
     optimizer = torch.optim.Adam(vm_net.parameters(), lr=constants.learning_rate)
 
     # Train the model
@@ -55,7 +58,7 @@ def test_pipeline():
     return vm_net, data_loader
 
 
-def get_next_pred(model, dataloader):
+def get_next_pred(model, dataloader, number_of_preds):
     '''
     Function to test the model
     Feeds the model with next data on loader and prints out the prediction
@@ -63,16 +66,16 @@ def get_next_pred(model, dataloader):
     device = constants.device
     
     # Get the next data in queue
-    inputs, label = next(iter(dataloader))
+    batch = next(iter(dataloader))
+    inputs, labels = batch
     inputs = inputs.to(device)
-    label = label.argmax() * 5
     
     # Get the prediction
-    pred = model(inputs)
-    pred = pred.argmax().item() * 5
+    preds = model(inputs)
     
     # Print the prediction
-    print(f"Predicted: {pred} ; Actual: {label}")
+    for i in range(number_of_preds):
+        print(f"Predicted: {preds[i].argmax() * 5} ; Actual: {labels[i].argmax() * 5}")
     
 
 def mic_turntable_pipeline():
