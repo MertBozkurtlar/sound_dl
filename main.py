@@ -18,7 +18,11 @@ def train_pipeline():
     logging.warning("Starting to train the model")
     
     # Load the data
-    data = dataset.dataset_pipeline()
+    if not os.path.exists("data/dataset.pt"):
+        data = dataset.dataset_pipeline()
+        torch.save(data, "data/dataset.pt")
+    else:
+        data = torch.load("data/dataset.pt")
     data_loader = DataLoader(data, constants.batch_size, shuffle=True)
 
     # Set the model
@@ -45,7 +49,11 @@ def test_pipeline():
     device = constants.device
     
     # Load the data
-    data = dataset.dataset_pipeline()
+    if not os.path.exists("data/dataset.pt"):
+        data = dataset.dataset_pipeline()
+        torch.save(data, "data/dataset.pt")
+    else:
+        data = torch.load("data/dataset.pt")
     data_loader = DataLoader(data, constants.batch_size, shuffle=True)
     
     # Load the model
