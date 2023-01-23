@@ -1,10 +1,12 @@
 from torch.cuda import is_available
 from tqdm import tqdm
 import logging
+import torch
 
-def train_epoch(model, data_loader, optimizer, loss_fn, device):
+def train_epoch(model, train_dataloader, test_dataloader, optimizer, loss_fn, device):
     '''Trains a single epoch, helper function for (function) train_model'''
-    for input, target in tqdm(data_loader):
+    train_loss = 0
+    for input, target in tqdm(train_dataloader):
         input, target = input.to(device), target.to(device)
 
         # forward pass
@@ -15,16 +17,30 @@ def train_epoch(model, data_loader, optimizer, loss_fn, device):
         # backpropagation
         loss.backward()
         optimizer.step()
-    print(f"Loss: {loss.item()}")
-    logging.warning(f"Loss: {loss.item()}")
+        train_loss += loss.item()
+    train_loss /= len(train_dataloader)
+    
+    with torch.no_grad():
+        val_loss = 0
+        for input, target in tqdm(test_dataloader):
+            input, target = input.to(device), target.to(device)
+            
+            prediction = model(input)
+            loss = loss_fn(prediction, target)
+            val_loss += loss.item()
+        val_loss /= len(test_dataloader) 
 
-def train_model(model, data_loader, optimizer, loss_fn, epochs):
+    print(f"Train Loss: {train_loss}, Validation Loss: {val_loss}")
+    logging.warning(f"Train Loss: {train_loss}, Validation Loss: {val_loss}")
+    
+    
+def train_model(model, train_dataloader, test_dataloader, optimizer, loss_fn, epochs):
     '''Trains the model for all epochs'''
     device = 'cuda' if is_available() else 'cpu'
     for epoch in range(epochs):
-        print(f"Epoch: {epoch}")
-        logging.warning(f"Epoch: {epoch}")
-        train_epoch(model, data_loader, optimizer, loss_fn, device)
+        print(f"Epoch: {epoch + 1}")
+        logging.warning(f"Epoch: {epoch + 1}")
+        train_epoch(model, train_dataloader, test_dataloader, optimizer, loss_fn, device)
         print("------------------------")
         logging.warning("------------------------")
     print("Finished training")

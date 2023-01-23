@@ -1,0 +1,98 @@
+WARNING:root:Starting to train the model
+WARNING:root:Starting to train the model
+WARNING:root:Epoch: 0
+WARNING:root:Starting to train the model
+WARNING:root:Epoch: 0
+WARNING:root:Starting to train the model
+WARNING:root:Starting to train the model
+WARNING:root:Starting to train the model
+WARNING:root:Epoch: 0
+WARNING:root:Train Loss: 2.442093895872434, Validation Loss: 2.003510757728859
+WARNING:root:------------------------
+WARNING:root:Epoch: 1
+WARNING:root:Train Loss: 1.7813513884941736, Validation Loss: 1.7131762990245112
+WARNING:root:------------------------
+WARNING:root:Epoch: 2
+WARNING:root:Train Loss: 1.5279990330338478, Validation Loss: 1.5785145185611866
+WARNING:root:------------------------
+WARNING:root:Epoch: 3
+WARNING:root:Train Loss: 1.3790773878494897, Validation Loss: 1.4996142122480605
+WARNING:root:------------------------
+WARNING:root:Epoch: 4
+WARNING:root:Train Loss: 1.2753358721733092, Validation Loss: 1.4455641287344474
+WARNING:root:------------------------
+WARNING:root:Epoch: 5
+WARNING:root:Train Loss: 1.1987702344854674, Validation Loss: 1.4093684576175831
+WARNING:root:------------------------
+WARNING:root:Epoch: 6
+WARNING:root:Train Loss: 1.1388166641195616, Validation Loss: 1.3847530241365786
+WARNING:root:------------------------
+WARNING:root:Epoch: 7
+WARNING:root:Train Loss: 1.0912501772244771, Validation Loss: 1.3673094775941637
+WARNING:root:------------------------
+WARNING:root:Epoch: 8
+WARNING:root:Train Loss: 1.0509914244214693, Validation Loss: 1.355623139275445
+WARNING:root:------------------------
+WARNING:root:Epoch: 9
+WARNING:root:Train Loss: 1.017801639686028, Validation Loss: 1.3461941083272297
+WARNING:root:------------------------
+WARNING:root:Epoch: 10
+WARNING:root:Train Loss: 0.9915310422579448, Validation Loss: 1.3335479542061135
+WARNING:root:------------------------
+WARNING:root:Epoch: 11
+WARNING:root:Train Loss: 0.9652089344958464, Validation Loss: 1.3403570210492168
+WARNING:root:------------------------
+WARNING:root:Epoch: 12
+WARNING:root:Train Loss: 0.9438513338565826, Validation Loss: 1.335239052772522
+WARNING:root:------------------------
+WARNING:root:Epoch: 13
+WARNING:root:Train Loss: 0.9254413314163685, Validation Loss: 1.338887581118831
+WARNING:root:------------------------
+WARNING:root:Epoch: 14
+WARNING:root:Train Loss: 0.9085763101776441, Validation Loss: 1.329802464555811
+WARNING:root:------------------------
+WARNING:root:Epoch: 15
+WARNING:root:Train Loss: 0.8927050856252511, Validation Loss: 1.3536207764237016
+WARNING:root:------------------------
+WARNING:root:Epoch: 16
+WARNING:root:Train Loss: 0.8804231834908326, Validation Loss: 1.3313757843441434
+WARNING:root:------------------------
+WARNING:root:Epoch: 17
+WARNING:root:Train Loss: 0.8679478272795678, Validation Loss: 1.3445384016743414
+WARNING:root:------------------------
+WARNING:root:Epoch: 18
+WARNING:root:Train Loss: 0.8554923161864281, Validation Loss: 1.353056099679735
+WARNING:root:------------------------
+WARNING:root:Epoch: 19
+WARNING:root:Train Loss: 0.844376094142596, Validation Loss: 1.358443604575263
+WARNING:root:------------------------
+WARNING:root:Epoch: 20
+WARNING:root:Train Loss: 0.834853620827198, Validation Loss: 1.3533142231128834
+WARNING:root:------------------------
+WARNING:root:Epoch: 21
+WARNING:root:Train Loss: 0.8256620012223721, Validation Loss: 1.3772110806571112
+WARNING:root:------------------------
+WARNING:root:Epoch: 22
+WARNING:root:Train Loss: 0.8167164290944735, Validation Loss: 1.367364176997432
+WARNING:root:------------------------
+WARNING:root:Epoch: 23
+WARNING:root:Train Loss: 0.8079333255688349, Validation Loss: 1.3700370302906744
+WARNING:root:------------------------
+WARNING:root:Epoch: 24
+WARNING:root:Train Loss: 0.8003153460721175, Validation Loss: 1.3913122283087835
+WARNING:root:------------------------
+WARNING:root:Epoch: 25
+WARNING:root:Train Loss: 0.7929733847578366, Validation Loss: 1.39165519784998
+WARNING:root:------------------------
+WARNING:root:Epoch: 26
+WARNING:root:Train Loss: 0.7851519547402859, Validation Loss: 1.3839454430120963
+WARNING:root:------------------------
+WARNING:root:Epoch: 27
+WARNING:root:Train Loss: 0.7789962487916152, Validation Loss: 1.3932642495190655
+WARNING:root:------------------------
+WARNING:root:Epoch: 28
+WARNING:root:Train Loss: 0.7725767716765404, Validation Loss: 1.4087331074255485
+WARNING:root:------------------------
+WARNING:root:Epoch: 29
+WARNING:root:Train Loss: 0.7670019581913948, Validation Loss: 1.3979678374749642
+WARNING:root:------------------------

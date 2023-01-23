@@ -9,7 +9,6 @@ class VonMisesNetwork(nn.Module):
         self.fc2 = nn.Linear(size_hidden_b, size_hidden_c)
         self.fc3 = nn.Linear(size_hidden_c, size_out)
         self.relu = nn.ReLU()
-        self.softmax = nn.Softmax(dim=1)
         self.bn = nn.BatchNorm1d(size_hidden_a)
         self.flatten = nn.Flatten()
 
@@ -23,6 +22,26 @@ class VonMisesNetwork(nn.Module):
         x = self.fc2(x)
         x = self.relu(x)
         x = self.fc3(x)
+        return x
+    
+class VonMisesNetworkClassification(nn.Module):
+    def __init__(self, size_in, size_hidden_a=512, size_hidden_b=256, size_out=72):
+        super().__init__()
+        self.vmLayer = VonMisesLayer(size_in, size_hidden_a)
+        self.fc1 = nn.Linear(size_hidden_a, size_hidden_b)
+        self.fc2 = nn.Linear(size_hidden_b, size_out)
+        self.relu = nn.ReLU()
+        self.bn = nn.BatchNorm1d(size_hidden_a)
+        self.flatten = nn.Flatten()
+
+    def forward(self, x):
+        x = self.flatten(x)
+        x = self.vmLayer(x)
+        x = self.relu(x)
+        x = self.bn(x)
+        x = self.fc1(x)
+        x = self.relu(x)
+        x = self.fc2(x)
         return x
     
     
@@ -49,4 +68,12 @@ class AngularLoss(nn.Module):
         super().__init__()
     
     def forward(self, preds, targets):
-        return torch.mean(2*(1-torch.cos((preds * torch.pi/180)-(targets * torch.pi/180))))
+        '''
+        Loss(theta, phi) = 2(1 - cos(theta - phi))
+        Minimizing angular loss maximizes the likelihood of von-Mises distribution
+        '''
+        loss = (preds * torch.pi/180)-(targets * torch.pi/180)
+        loss = torch.cos(loss)
+        loss = 2 * (1 - loss)
+        loss = loss ** 2
+        return torch.mean(loss)

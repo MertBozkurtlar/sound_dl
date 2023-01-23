@@ -11,12 +11,12 @@ import torch
 import os
 from modules import constants
 
-def dataset_pipeline():
+def dataset_pipeline(classification=False):
     '''Pipeline for preprocessing and loading audio data, and creatingn the dataset'''
     timings = get_splits()
     audios = load_audios(timings)
     data = preprocess_all_audios(audios)
-    dataset = Dataset(data)
+    dataset = Dataset(data, classification)
     return dataset
 
 
