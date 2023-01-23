@@ -1,5 +1,14 @@
 import torch
 
+# Audio Data #
+sampling_freq = 16000 # Hz
+split_threshold = 8000 # Minimum time between spoken part to be considered silent
+duration = 3 # secs
+stft_frame_size = 512
+stft_hop_size = 256
+volume_threshold = -50 # dBt
+num_of_channels = 8
+
 # Model #
 # input_size = int((((sampling_freq * duration) / stft_hop_size) + 1) *  length *  (stft_frame_size // 2 + 1) * num_of_channels)\
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -37,12 +46,3 @@ SNR_use = [0, 20, 40]
 
 # noise_type_use = ["white_noise"]
 # SNR_use = [60]
-
-# Audio Data #
-sampling_freq = 16000 # Hz
-split_threshold = 8000 # Minimum time between spoken part to be considered silent
-duration = 3 # secs
-stft_frame_size = 512
-stft_hop_size = 256
-volume_threshold = -50 # dBt
-num_of_channels = 8

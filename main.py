@@ -152,8 +152,10 @@ def pred_callback(rec):
     
     # Model #
     print(f"Using {device} device")
-    vm_net = model.VonMisesNetwork(size_in=constants.input_size).to(device)
-    vm_net.load_state_dict(torch.load(constants.model_save_loc + "/vm_model.pth"))
+    classification = (constants.model_type == "classification")
+    vm_net = model.VonMisesNetworkClassification(size_in=constants.input_size).to(device) if classification \
+        else model.VonMisesNetwork(size_in=constants.input_size).to(device)
+    vm_net.load_state_dict(torch.load(constants.model_save_loc + "/vm_model.pth", map_location=torch.device(device)))
     vm_net.eval()
     
     # Prediction
@@ -166,7 +168,7 @@ def pred_callback(rec):
     
     # If turntable is connected, rotate it by prediction
     global turntable
-    if not turntable:
+    if turntable:
         turn_table(int(pred))
         
 
