@@ -71,3 +71,4 @@ def turn_table(degree):
     # ser.write(code.encode())
     # ser.close()
     
+mic_turntable_pipeline()

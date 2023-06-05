@@ -18,8 +18,8 @@ import json
 # In[]:
 # FILE SYSTEM VARIABLES #
 data_loc = "/misc/export3/bozkurtlar/recordings"
-dataset_loc = os.path.abspath("../data/recording_dataset")
-save_loc = os.path.abspath("../data/trainings/")
+dataset_loc = os.path.abspath("../data/recordings_dataset")
+save_loc = os.path.abspath("../data/trainings")
 device = 'cuda' if is_available() else 'cpu'
 print(f"Using {device} device")
 degree_step = 5
@@ -129,6 +129,7 @@ if (os.path.exists(dataset_loc)):
     dataset = torch.load(dataset_loc  + "/dataset.pt")
 else:
     print(f"No dataset found, processing audios to {dataset_loc}")
+    os.mkdir(dataset_loc)
     dataset = SoundDataset(load_audios(timings))
     torch.save(dataset, dataset_loc + "/dataset.pt", pickle_protocol=4)
 
