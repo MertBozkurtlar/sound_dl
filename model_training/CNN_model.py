@@ -13,10 +13,12 @@ import math
 import torch.nn as nn
 from torch.cuda import is_available
 from torch.utils.data import DataLoader, Dataset, random_split
+import json
 
 # In[]:
 # FILE SYSTEM VARIABLES #
-data_loc = "/run/media/bozkurtlar/Acer/Users/Mert/Documents/data/recordings"
+data_loc = "/misc/export3/bozkurtlar/recordings"
+dataset_loc = os.path.abspath("../data/recording_dataset")
 save_loc = os.path.abspath("../data/trainings/")
 device = 'cuda' if is_available() else 'cpu'
 print(f"Using {device} device")
@@ -24,7 +26,7 @@ degree_step = 5
 
 
 # In[]:
-def get_splits() -> dict:
+def get_splits(debug=False) -> dict:
     '''
     Get timings of non silent data for each degree from clean record
     
@@ -41,16 +43,16 @@ def get_splits() -> dict:
     avg_rms = [split.mean() for split in frames]
     values = [f'{"silent" if split < max(avg_rms) / 20 else "speech"}' for i, split in enumerate(avg_rms)]
     
-    # i = 0
-    # j = 0
-    # while (i < len(values)):
-    #     if values[i] != "silent":
-    #         j = i
-    #         while(values[j] != "silent"):
-    #             j += 1
-    #         print (f"{(i * (160 * 20 / 16000)):.1f} - {(j * (160 * 20 / 16000)):.1f}")
-    #         i = j
-    #     i += 1
+    if(debug): # Print the non-silent durations
+        i = 0; j = 0
+        while (i < len(values)):
+            if values[i] != "silent":
+                j = i
+                while(values[j] != "silent"):
+                    j += 1
+                print (f"{(i * (160 * 20 / 16000)):.1f} - {(j * (160 * 20 / 16000)):.1f}")
+                i = j
+            i += 1
     return values
 
 timings = get_splits()
@@ -58,7 +60,7 @@ timings = get_splits()
 
 # In[]:
 
-def load_audios(timings_dic: dict) -> list:
+def load_audios(timings_dic: dict, filter = False) -> list:
     '''
     Load each audio, split out silent parts and add to audios array
     
@@ -76,9 +78,10 @@ def load_audios(timings_dic: dict) -> list:
         signal, _ = librosa.load(file_path, sr=16000, mono=False)
         signal = librosa.util.normalize(signal)
         spectogram = librosa.stft(signal, n_fft=400, hop_length=160)
-        #energy = np.abs(spectogram)
-        #threshold = np.max(energy)/1000; #tolerance threshold
-        #spectogram[energy < threshold] = 0
+        if (filter):
+            energy = np.abs(spectogram)
+            threshold = np.max(energy)/1000; #tolerance threshold
+            spectogram[energy < threshold] = 0
         frames = np.array_split(spectogram, range(20, spectogram.shape[2], 20), axis=2)[:-1]
         phase = np.angle(frames)
         values = [deg if frame == "speech" else frame for frame in timings]
@@ -106,7 +109,6 @@ class SoundDataset(Dataset):
 
     def __getitem__(self, index):
         spec, label = self.data[index]
-        # If task type is set to classification encode the label in one hot vector
         label = self.encode_label(label).to(device)
         spec = torch.from_numpy(spec).to(self.device)
         return spec, label
@@ -120,8 +122,15 @@ class SoundDataset(Dataset):
             label = int(label / self.degree_step)
             vector[label] = 1
         return vector
-    
-dataset = SoundDataset(load_audios(timings))
+
+# Load dataset if it exists
+if (os.path.exists(dataset_loc)):
+    print(f"Pre-exported dataset found at {dataset_loc}, loading..")
+    dataset = torch.load(dataset_loc  + "/dataset.pt")
+else:
+    print(f"No dataset found, processing audios to {dataset_loc}")
+    dataset = SoundDataset(load_audios(timings))
+    torch.save(dataset, dataset_loc + "/dataset.pt", pickle_protocol=4)
 
 
 # In[]:
@@ -244,8 +253,6 @@ class ResNet(torch.nn.Module):
             for m in self.modules():
                 if isinstance(m, Bottleneck):
                     torch.nn.init.constant_(m.bn3.weight, 0)
-                elif isinstance(m, BasicBlock):
-                    torch.nn.init.constant_(m.bn2.weight, 0)
 
     def _make_layer(self, block, planes, blocks,
                     stride=1, dilate=False):
@@ -321,7 +328,7 @@ def train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn, dev
         optimizer.step()
         
         train_loss += loss.item()
-        train_accuracy_correct += len([prediction[i] for i in range(len(prediction)) if prediction[i] == target[i]])
+        train_accuracy_correct += len([prediction[i] for i in range(len(prediction)) if prediction[i].argmax() == target[i].argmax()])
         train_accuracy_total += len(prediction)
     train_loss /= len(dataloader_train)
     
@@ -350,9 +357,10 @@ def train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn, dev
 def train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, epochs):
     '''Trains the model for all epochs'''
     device = 'cuda' if is_available() else 'cpu'
-    file = open("data/log.txt", "w+")
+    file = open(save_loc + "/log.txt", "a")
     file.write("Starting the training\n")
-    for epoch in range(1, epochs+1):
+    start_epoch = len(train_losses) + 1 # Epoch from the last training, 0 if the is no previous training
+    for epoch in range(start_epoch, start_epoch + epochs):
         print(f"Epoch: {epoch}")
         file.write(f"Epoch: {epoch}\n")
         train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn, device, file)
@@ -372,9 +380,18 @@ train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 dataloader_train = DataLoader(train_dataset, batch_size=32, shuffle=True)
 dataloader_val = DataLoader(val_dataset, batch_size=32, shuffle=False)
 model = ResNet(Bottleneck, layers=[3, 4, 6, 3], num_classes=73).to(device)
-model.load_state_dict(torch.load("data" + "/vm_model.pth"))
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 loss_fn = nn.CrossEntropyLoss()
+
+# Load previous training if exists
+if (os.path.exists(save_loc)):
+    print(f"Pre-trained model found at {save_loc}, loading..")
+    model.load_state_dict(torch.load(save_loc + "/vm_model.pth")) # Model
+    with open(save_loc + "logs.json", "r") as fp: # Logs
+        train_losses, val_losses, train_accuracies, val_accuracies = json.load(fp)
+else: # Create the directory if it doesn't
+    print(f"No pre-trained model found, creating dictionary {save_loc}..")
+    os.mkdir(save_loc)
 
 # In[12]:
 try:
@@ -384,8 +401,10 @@ except KeyboardInterrupt:
 
 
 # In[13]:
-torch.save(model.state_dict(), "data" + "/vm_model.pth")
-
+# Save training data
+torch.save(model.state_dict(), save_loc + "/vm_model.pth") # Model
+with open(save_loc + "logs.json", "w") as fp: # Logs
+    json.dump([train_losses, val_losses, train_accuracies, val_accuracies], fp, indent=2)
 
 # In[14]:
 import matplotlib.pyplot as plt
@@ -393,7 +412,7 @@ plt.plot(train_losses, label="Train")
 plt.plot(val_losses, label="Validation")
 plt.legend()
 plt.title("Loss")
-plt.savefig("data" + "/fig_loss.png")
+plt.savefig(save_loc + "/fig_loss.png")
 plt.show()
 plt.clf()
 
@@ -401,6 +420,6 @@ plt.plot(train_accuracies, label="Train")
 plt.plot(val_accuracies, label="Validation")
 plt.legend()
 plt.title("Accuracy %")
-plt.savefig("data" + "/fig_accuracy.png")
+plt.savefig(save_loc + "/fig_accuracy.png")
 plt.show()
 # %%

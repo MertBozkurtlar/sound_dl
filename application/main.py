@@ -1,35 +1,31 @@
-from modules import train, dataset
-from modules import constants
-from data.model import model
+import sys
 import torch
 import os
-import time
 import numpy as np
-import scipy
-import sys, time
-import librosa.display
-from torch.utils.data import DataLoader
-import logging
+from modules import input
+
+loc = os.path.abspath("../data/trainings")
+sys.path.insert(0, loc)
+import Resnet
+model_loc = os.path.abspath(f"{loc}/vm_model.pth")
+device = "cpu"
 
 def mic_turntable_pipeline():
     '''
     Pipeline to run the program on realtime mode
     Starts the microphone stream, and feeds it with the callback function that will be called in the input loop
     '''
-    from modules import input
     # Model #
     global device
     global vm_net
     global turntable
 
     turntable = False
-    vm_net = model.ResNet(model.Bottleneck, layers=[3, 4, 6, 3], num_classes=73).to('cpu')
-    vm_net.load_state_dict(torch.load("data/model/vm_model.pth", map_location='cpu'))
+    vm_net = model.ResNet(model.Bottleneck, layers=[3, 4, 6, 3], num_classes=73).to(device)
+    vm_net.load_state_dict(torch.load(model_loc, map_location=device))
     vm_net.eval()
     input.input_init(pred_callback)
 
-
-count = 0
     
 def pred_callback(rec):
     '''
@@ -37,7 +33,7 @@ def pred_callback(rec):
     Takes the stft of recorded audio and feeds it to the model,
     then turns the turntable by the predicted angle
     '''
-    global count
+    count = 0
     signal = librosa.util.normalize(rec)
     spectogram = librosa.stft(signal, n_fft=400, hop_length=160)
     frame = spectogram[:,:,:-1]
