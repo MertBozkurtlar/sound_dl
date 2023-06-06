@@ -388,7 +388,7 @@ loss_fn = nn.CrossEntropyLoss()
 if (os.path.exists(save_loc)):
     print(f"Pre-trained model found at {save_loc}, loading..")
     model.load_state_dict(torch.load(save_loc + "/vm_model.pth")) # Model
-    with open(save_loc + "logs.json", "r") as fp: # Logs
+    with open(save_loc + "/logs.json", "r") as fp: # Logs
         train_losses, val_losses, train_accuracies, val_accuracies = json.load(fp)
 else: # Create the directory if it doesn't
     print(f"No pre-trained model found, creating dictionary {save_loc}..")
@@ -404,11 +404,14 @@ except KeyboardInterrupt:
 # In[13]:
 # Save training data
 torch.save(model.state_dict(), save_loc + "/vm_model.pth") # Model
-with open(save_loc + "logs.json", "w") as fp: # Logs
+with open(save_loc + "/logs.json", "w") as fp: # Logs
     json.dump([train_losses, val_losses, train_accuracies, val_accuracies], fp, indent=2)
 
 # In[14]:
 import matplotlib.pyplot as plt
+import scienceplots
+plt.style.use(["science", "notebook", "grid"])
+
 plt.plot(train_losses, label="Train")
 plt.plot(val_losses, label="Validation")
 plt.legend()

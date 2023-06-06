@@ -3,10 +3,11 @@ import torch
 import os
 import numpy as np
 from modules import input
+import librosa
 
 loc = os.path.abspath("../data/trainings")
 sys.path.insert(0, loc)
-import Resnet
+import model
 model_loc = os.path.abspath(f"{loc}/vm_model.pth")
 device = "cpu"
 
