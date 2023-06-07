@@ -1,11 +1,12 @@
 #!/usr/bin/env python
 # coding: utf-8
 
-# In[]:
+# %% Imports
 import torch
 from tqdm import tqdm
 import librosa
 import numpy as np
+import random
 import scipy
 import os
 import torchaudio
@@ -15,17 +16,16 @@ from torch.cuda import is_available
 from torch.utils.data import DataLoader, Dataset, random_split
 import json
 
-# In[]:
-# FILE SYSTEM VARIABLES #
-data_loc = "/misc/export3/bozkurtlar/recordings"
-dataset_loc = os.path.abspath("../data/recordings_dataset")
-save_loc = os.path.abspath("../data/trainings")
+# %% Variables
+data_loc = os.path.abspath("/misc/export3/bozkurtlar/recordings")
+dataset_loc = os.path.abspath("/misc/export3/bozkurtlar/dataset")
+save_loc = os.path.abspath("../data/training")
 device = 'cuda' if is_available() else 'cpu'
 print(f"Using {device} device")
 degree_step = 5
 
 
-# In[]:
+# %% Label the recording to speech and silent parts
 def get_splits(debug=False) -> dict:
     '''
     Get timings of non silent data for each degree from clean record
@@ -57,9 +57,7 @@ def get_splits(debug=False) -> dict:
 
 timings = get_splits()
 
-
-# In[]:
-
+# %% Load audios to an array
 def load_audios(timings_dic: dict, filter = False) -> list:
     '''
     Load each audio, split out silent parts and add to audios array
@@ -85,19 +83,18 @@ def load_audios(timings_dic: dict, filter = False) -> list:
         frames = np.array_split(spectogram, range(20, spectogram.shape[2], 20), axis=2)[:-1]
         phase = np.angle(frames)
         values = [deg if frame == "speech" else frame for frame in timings]
-        audio = list(zip(phase, values))
         
-        # Remove excessive silents
-        num_silents = 0
-        for i in reversed(range(len(audio))):            
-            if(audio[i][1] == 'silent'):
-                num_silents += 1
-                if (num_silents > 50):
-                    audio.pop(i)
-        audios.extend(audio)
+        # Remove excessive silents to balance the dataset
+        silents = [indx for indx, value in enumerate(values) if value == "silent" ]
+        idx_to_drop = random.sample(silents, 50)
+        dropped_silents = [value for idx, value in enumerate(silents) if value not in idx_to_drop]
+        values = [value for idx, value in enumerate(values) if idx not in dropped_silents]
+        phase = [value for idx, value in enumerate(phase) if idx not in dropped_silents]
+
+        audios.extend(list(zip(phase, values)))
     return audios
 
-# In[]:
+# %% Dataset
 class SoundDataset(Dataset):
     def __init__(self, data) -> None:
         super().__init__()
@@ -133,8 +130,7 @@ else:
     dataset = SoundDataset(load_audios(timings))
     torch.save(dataset, dataset_loc + "/dataset.pt", pickle_protocol=4)
 
-
-# In[]:
+# %% NN Model
 class VonMisesLayer(nn.Module):
     def __init__(self, input_channel, output_channel, kernel_size, stride=2, padding=3):
         super().__init__()
@@ -302,7 +298,7 @@ class ResNet(torch.nn.Module):
         return x
 
 
-# In[10]:
+# %% Training functions
 train_losses = []
 train_accuracies = []
 val_losses = []
@@ -370,7 +366,7 @@ def train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, epo
     print("Finished training")
 
 
-# In[11]:
+# %% Training
 # Define the size of train and test datasets
 train_size = int(0.85 * len(dataset))
 val_size = len(dataset) - train_size
@@ -394,20 +390,18 @@ else: # Create the directory if it doesn't
     print(f"No pre-trained model found, creating dictionary {save_loc}..")
     os.mkdir(save_loc)
 
-# In[12]:
 try:
     train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, 200)
 except KeyboardInterrupt:
     print("Stopping the training early")
 
 
-# In[13]:
-# Save training data
+# %% Save the model and logs
 torch.save(model.state_dict(), save_loc + "/vm_model.pth") # Model
 with open(save_loc + "/logs.json", "w") as fp: # Logs
     json.dump([train_losses, val_losses, train_accuracies, val_accuracies], fp, indent=2)
 
-# In[14]:
+# %% Plot the results
 import matplotlib.pyplot as plt
 import scienceplots
 plt.style.use(["science", "notebook", "grid"])
@@ -426,4 +420,3 @@ plt.legend()
 plt.title("Accuracy %")
 plt.savefig(save_loc + "/fig_accuracy.png")
 plt.show()
-# %%
