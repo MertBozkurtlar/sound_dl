@@ -18,8 +18,9 @@ import json
 
 # %% Variables
 data_loc = os.path.abspath("/misc/export3/bozkurtlar/recordings")
-dataset_loc = os.path.abspath("/misc/export3/bozkurtlar/dataset")
-save_loc = os.path.abspath("../data/training")
+dataset_loc = os.path.abspath("/misc/export3/bozkurtlar/silentsfixeddataset")
+save_loc = os.path.abspath("/home/mert/ssl_robot/data/silentsfixedtraining")
+
 device = 'cuda' if is_available() else 'cpu'
 print(f"Using {device} device")
 degree_step = 5
@@ -126,7 +127,7 @@ if (os.path.exists(dataset_loc)):
     dataset = torch.load(dataset_loc  + "/dataset.pt")
 else:
     print(f"No dataset found, processing audios to {dataset_loc}")
-    os.mkdir(dataset_loc)
+    os.makedirs(dataset_loc)
     dataset = SoundDataset(load_audios(timings))
     torch.save(dataset, dataset_loc + "/dataset.pt", pickle_protocol=4)
 
@@ -388,7 +389,7 @@ if (os.path.exists(save_loc)):
         train_losses, val_losses, train_accuracies, val_accuracies = json.load(fp)
 else: # Create the directory if it doesn't
     print(f"No pre-trained model found, creating dictionary {save_loc}..")
-    os.mkdir(save_loc)
+    os.makedirs(save_loc)
 
 try:
     train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, 200)
