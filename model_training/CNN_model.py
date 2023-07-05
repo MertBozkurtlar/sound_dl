@@ -6,22 +6,29 @@ import torch
 from tqdm import tqdm
 import librosa
 import numpy as np
+import concurrent.futures as cf
 import random
 import scipy
+import re
 import os
+from pathlib import Path
 import torchaudio
 import math
 import torch.nn as nn
 from torch.cuda import is_available
 from torch.utils.data import DataLoader, Dataset, random_split
 import json
+import zarr
 
 # %% Variables
-data_loc = os.path.abspath("/misc/export3/bozkurtlar/recordings")
-dataset_loc = os.path.abspath("/misc/export3/bozkurtlar/silentsfixeddataset")
-save_loc = os.path.abspath("/home/mert/ssl_robot/data/silentsfixedtraining")
+split_file_loc = Path("/misc/export3/bozkurtlar/recordings/rec000.wav")
+data_loc = Path("/misc/export3/bozkurtlar/noise_mixed_recordings")
+# data_loc = Path("/misc/export3/bozkurtlar/Test_Recordings")
+dataset_loc = os.path.abspath("/misc/export3/bozkurtlar/datasets/noise_dataset")
+save_loc = os.path.abspath("/home/mert/ssl_robot/data/noise_training")
+memmap_loc = Path("/misc/export3/bozkurtlar/")
 
-device = 'cuda' if is_available() else 'cpu'
+device = 'cuda:4' if is_available() else 'cpu'
 print(f"Using {device} device")
 degree_step = 5
 
@@ -34,9 +41,7 @@ def get_splits(debug=False) -> dict:
     Returns:
         Dictionary with timings for each degree. Degree -> Timings array
     '''
-    
-    file_path = os.path.join(data_loc,  f"rec000.wav")
-    signal, _ = librosa.load(file_path, sr=16000, mono=True)
+    signal, _ = librosa.load(split_file_loc, sr=16000, mono=True)
     signal = librosa.util.normalize(signal)
     spectogram = librosa.stft(signal, n_fft=400, hop_length=160)
     rms = librosa.feature.rms(S=spectogram, frame_length=400, hop_length=160)
@@ -56,80 +61,81 @@ def get_splits(debug=False) -> dict:
             i += 1
     return values
 
+print("Getting timings")
 timings = get_splits()
 
 # %% Load audios to an array
-def load_audios(timings_dic: dict, filter = False) -> list:
-    '''
-    Load each audio, split out silent parts and add to audios array
+num_of_frames = 2904
+audio_paths = list(data_loc.rglob("*.wav"))
+
+def process_audio(file_path):
+    signal, _ = librosa.load(file_path, sr=16000, mono=False)
+    deg = int(re.search(r'\d+', file_path.stem).group())
+    signal = librosa.util.normalize(signal)
+    spectogram = librosa.stft(signal, n_fft=400, hop_length=160)
+    frames = np.array_split(spectogram, range(20, spectogram.shape[2], 20), axis=2)[:-1]
+    phase = np.angle(frames).astype("float16")
+    values = [deg if frame == "speech" else frame for frame in timings]
     
-    Parameters:
-        -timings_dict: Dictionary with timings for each degree. Degree -> Timings array
+    # Remove silents from dataset
+    silents = [indx for indx, value in enumerate(values) if value == "silent"]
+    values = [value for idx, value in enumerate(values) if idx not in silents]
+    phase = [value for idx, value in enumerate(phase) if idx not in silents]
     
-    Returns:
-        List with audios loaded. (audio, (signal, label))
-    '''
+    return list(zip(phase, values))
     
-    audios = []
-    print("Starting to load the audios")
-    for deg in tqdm(range(0, 360, 5)):
-        file_path = os.path.join(data_loc, f"rec{deg:03d}.wav") 
-        signal, _ = librosa.load(file_path, sr=16000, mono=False)
-        signal = librosa.util.normalize(signal)
-        spectogram = librosa.stft(signal, n_fft=400, hop_length=160)
-        if (filter):
-            energy = np.abs(spectogram)
-            threshold = np.max(energy)/1000; #tolerance threshold
-            spectogram[energy < threshold] = 0
-        frames = np.array_split(spectogram, range(20, spectogram.shape[2], 20), axis=2)[:-1]
-        phase = np.angle(frames)
-        values = [deg if frame == "speech" else frame for frame in timings]
+def load_audios(timings_dic: dict) -> list:
+    # Xpath = np.memmap(memmap_loc / "xmap.dat", dtype='float32', mode='w+', shape=(num_of_frames * len(audio_paths), 8, 201, 20))
+    # ypath = np.memmap(memmap_loc / "ymap.dat", dtype='float32', mode='w+', shape=(num_of_frames * len(audio_paths),))
+    # Xpath = zarr.open(shape=(num_of_frames * len(audio_paths), 8, 201, 20), mode="w", dtype="f4", chunks=(num_of_frames, 8, 201, 20), store=memmap_loc / "XZarr.zarr")
+    # ypath = zarr.open(shape=(num_of_frames * len(audio_paths),), dtype="f4", mode="w", chunks=(num_of_frames,), store=memmap_loc / "yZarr.zarr")
+    
+    print("Processing audios")
+    data = []
+    # for audio_path in tqdm(audio_paths):
+    #     audio = process_audio(audio_path)
+    #     data.extend(audio)
         
-        # Remove excessive silents to balance the dataset
-        silents = [indx for indx, value in enumerate(values) if value == "silent" ]
-        idx_to_drop = random.sample(silents, 50)
-        dropped_silents = [value for idx, value in enumerate(silents) if value not in idx_to_drop]
-        values = [value for idx, value in enumerate(values) if idx not in dropped_silents]
-        phase = [value for idx, value in enumerate(phase) if idx not in dropped_silents]
-
-        audios.extend(list(zip(phase, values)))
-    return audios
-
+    # # Start workers for processing data
+    with cf.ProcessPoolExecutor() as executor:
+        futures = []
+        for audio_path in audio_paths:
+            f = executor.submit(process_audio, audio_path)
+            futures.append(f)
+        
+        for index, f in tqdm(enumerate(cf.as_completed(futures)), total=len(futures)):
+            data.extend(f.result())
+            # X, y = f.result()
+            # Xpath[index * num_of_frames: (index + 1) * num_of_frames] = X[:]
+            # ypath[index * num_of_frames: (index + 1) * num_of_frames] = y[:]
+    return data
 # %% Dataset
 class SoundDataset(Dataset):
     def __init__(self, data) -> None:
         super().__init__()
-        self.device = 'cuda' if is_available() else 'cpu'
-        self.data = data
         self.degree_step = degree_step
+        # self.Xpath = zarr.open(shape=(num_of_frames * len(audio_paths), 8, 201, 20), mode="r", dtype="f4", chunks=(1, 8, 201, 20), store=memmap_loc / "XZarr.zarr")
+        # self.ypath = zarr.open(shape=(num_of_frames * len(audio_paths),), dtype="f4", mode="r", chunks=(1,), store=memmap_loc / "yZarr.zarr")
+        self.data = data
+        
     def __len__(self):
         return len(self.data)
 
     def __getitem__(self, index):
         spec, label = self.data[index]
         label = self.encode_label(label).to(device)
-        spec = torch.from_numpy(spec).to(self.device)
+        spec = torch.from_numpy(spec).to(device)
         return spec, label
     
     # Encode the label in one-hot vector 
     def encode_label(self, label):
-        vector = torch.zeros(int((360 / self.degree_step) + 1))
-        if label == 'silent':
-            vector[-1] = 1
-        else:
-            label = int(label / self.degree_step)
-            vector[label] = 1
+        vector = torch.zeros(int(360 / self.degree_step))
+        label = int(label / self.degree_step)
+        vector[label] = 1
         return vector
 
-# Load dataset if it exists
-if (os.path.exists(dataset_loc)):
-    print(f"Pre-exported dataset found at {dataset_loc}, loading..")
-    dataset = torch.load(dataset_loc  + "/dataset.pt")
-else:
-    print(f"No dataset found, processing audios to {dataset_loc}")
-    os.makedirs(dataset_loc)
-    dataset = SoundDataset(load_audios(timings))
-    torch.save(dataset, dataset_loc + "/dataset.pt", pickle_protocol=4)
+print("Loading audios")
+dataset = SoundDataset(load_audios(timings))
 
 # %% NN Model
 class VonMisesLayer(nn.Module):
@@ -201,7 +207,7 @@ class Bottleneck(torch.nn.Module):
 
 
 class ResNet(torch.nn.Module):
-    def __init__(self, block, layers, num_classes=73, zero_init_residual=False, groups=1,
+    def __init__(self, block, layers, num_classes=72, zero_init_residual=False, groups=1,
                  width_per_group=64, replace_stride_with_dilation=None, norm_layer=None):
         
         super().__init__()
@@ -354,7 +360,6 @@ def train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn, dev
 
 def train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, epochs):
     '''Trains the model for all epochs'''
-    device = 'cuda' if is_available() else 'cpu'
     file = open(save_loc + "/log.txt", "a")
     file.write("Starting the training\n")
     start_epoch = len(train_losses) + 1 # Epoch from the last training, 0 if the is no previous training
@@ -377,7 +382,7 @@ train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
 dataloader_train = DataLoader(train_dataset, batch_size=32, shuffle=True)
 dataloader_val = DataLoader(val_dataset, batch_size=32, shuffle=False)
-model = ResNet(Bottleneck, layers=[3, 4, 6, 3], num_classes=73).to(device)
+model = ResNet(Bottleneck, layers=[3, 4, 6, 3], num_classes=72).half().to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 loss_fn = nn.CrossEntropyLoss()
 
