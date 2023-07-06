@@ -1,0 +1,2 @@
+Starting the training
+Epoch: 1

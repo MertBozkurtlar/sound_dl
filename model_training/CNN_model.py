@@ -24,11 +24,14 @@ import zarr
 split_file_loc = Path("/misc/export3/bozkurtlar/recordings/rec000.wav")
 data_loc = Path("/misc/export3/bozkurtlar/noise_mixed_recordings")
 # data_loc = Path("/misc/export3/bozkurtlar/Test_Recordings")
-dataset_loc = os.path.abspath("/misc/export3/bozkurtlar/datasets/noise_dataset")
+data_save_loc = Path("/misc/export3/bozkurtlar/data")
+dataset_loc = Path("/misc/export3/bozkurtlar/datasets/noise_dataset")
 save_loc = os.path.abspath("/home/mert/ssl_robot/data/noise_training")
 memmap_loc = Path("/misc/export3/bozkurtlar/")
+batch_size = 128
+data_partitations = 4
 
-device = 'cuda:4' if is_available() else 'cpu'
+device = 'cuda' if is_available() else 'cpu'
 print(f"Using {device} device")
 degree_step = 5
 
@@ -74,55 +77,77 @@ def process_audio(file_path):
     signal = librosa.util.normalize(signal)
     spectogram = librosa.stft(signal, n_fft=400, hop_length=160)
     frames = np.array_split(spectogram, range(20, spectogram.shape[2], 20), axis=2)[:-1]
-    phase = np.angle(frames).astype("float16")
+    phase = np.angle(frames)
     values = [deg if frame == "speech" else frame for frame in timings]
     
     # Remove silents from dataset
     silents = [indx for indx, value in enumerate(values) if value == "silent"]
-    values = [value for idx, value in enumerate(values) if idx not in silents]
-    phase = [value for idx, value in enumerate(phase) if idx not in silents]
+    # values = np.array([value for idx, value in enumerate(values) if idx not in silents])
+    phase = np.array([value for idx, value in enumerate(phase) if idx not in silents])
     
-    return list(zip(phase, values))
+    return phase, deg
     
 def load_audios(timings_dic: dict) -> list:
-    # Xpath = np.memmap(memmap_loc / "xmap.dat", dtype='float32', mode='w+', shape=(num_of_frames * len(audio_paths), 8, 201, 20))
-    # ypath = np.memmap(memmap_loc / "ymap.dat", dtype='float32', mode='w+', shape=(num_of_frames * len(audio_paths),))
-    # Xpath = zarr.open(shape=(num_of_frames * len(audio_paths), 8, 201, 20), mode="w", dtype="f4", chunks=(num_of_frames, 8, 201, 20), store=memmap_loc / "XZarr.zarr")
-    # ypath = zarr.open(shape=(num_of_frames * len(audio_paths),), dtype="f4", mode="w", chunks=(num_of_frames,), store=memmap_loc / "yZarr.zarr")
-    
     print("Processing audios")
-    data = []
-    # for audio_path in tqdm(audio_paths):
-    #     audio = process_audio(audio_path)
-    #     data.extend(audio)
+    # Start workers for processing data
+    Xdata = torch.Tensor()
+    ydata = torch.Tensor()
+    file_indx = 1
+    for index, audio_path in tqdm(enumerate(audio_paths), total=len(audio_paths)):
+        X, y = process_audio(audio_path)
+        Xdata = torch.cat((Xdata, torch.Tensor(X)))
+        ydata = torch.cat((ydata, torch.Tensor(y)))
+        # Xpath[index * num_of_frames: (index + 1) * num_of_frames] = X[:]
+        # ypath[index * num_of_frames: (index + 1) * num_of_frames] = y[:]
+        if ((index + 1) % (len(audio_paths) / data_partitations) == 0):
+            print(f"Saving dataset at {data_save_loc}/Xdata_{file_indx}.pt")
+            torch.save(Xdata, data_save_loc / "Xdata" / f"Xdata_{file_indx}.pt", pickle_protocol=4)
+            del Xdata
+            print(f"Saving dataset at {data_save_loc}/ydata_{file_indx}.pt")
+            torch.save(ydata, data_save_loc / "ydata" / f"ydata_{file_indx}.pt", pickle_protocol=4)
+            del ydata
+            file_indx += 1
+            Xdata = torch.Tensor()
+            ydata = torch.Tensor()
+    # with cf.ProcessPoolExecutor(max_workers=5) as executor:
+    #     Xdata = torch.Tensor()
+    #     ydata = torch.Tensor()
+    #     futures = []
+    #     for audio_path in audio_paths:
+    #         f = executor.submit(process_audio, audio_path)
+    #         futures.append(f)
         
-    # # Start workers for processing data
-    with cf.ProcessPoolExecutor() as executor:
-        futures = []
-        for audio_path in audio_paths:
-            f = executor.submit(process_audio, audio_path)
-            futures.append(f)
-        
-        for index, f in tqdm(enumerate(cf.as_completed(futures)), total=len(futures)):
-            data.extend(f.result())
-            # X, y = f.result()
-            # Xpath[index * num_of_frames: (index + 1) * num_of_frames] = X[:]
-            # ypath[index * num_of_frames: (index + 1) * num_of_frames] = y[:]
-    return data
+    #     file_indx = 1
+    #     for index, f in tqdm(enumerate(cf.as_completed(futures)), total=len(futures)):
+    #         X, y = f.result()
+    #         Xdata = torch.cat((Xdata, torch.Tensor(X)))
+    #         ydata = torch.cat((ydata, torch.Tensor(y)))
+    #         # Xpath[index * num_of_frames: (index + 1) * num_of_frames] = X[:]
+    #         # ypath[index * num_of_frames: (index + 1) * num_of_frames] = y[:]
+    #         if ((index + 1) % (len(audio_paths) / data_partitations) == 0):
+    #             print(f"Saving dataset at {data_save_loc}/Xdata_{file_indx}.pt")
+    #             torch.save(Xdata, data_save_loc / "Xdata" / f"Xdata_{file_indx}.pt", pickle_protocol=4)
+    #             del Xdata
+    #             print(f"Saving dataset at {data_save_loc}/ydata_{file_indx}.pt")
+    #             torch.save(ydata, data_save_loc / "ydata" / f"ydata_{file_indx}.pt", pickle_protocol=4)
+    #             del ydata
+    #             file_indx += 1
+    #             Xdata = torch.Tensor()
+    #             ydata = torch.Tensor()
+# load_audios(timings)
+
 # %% Dataset
 class SoundDataset(Dataset):
-    def __init__(self, data) -> None:
+    def __init__(self) -> None:
         super().__init__()
         self.degree_step = degree_step
-        # self.Xpath = zarr.open(shape=(num_of_frames * len(audio_paths), 8, 201, 20), mode="r", dtype="f4", chunks=(1, 8, 201, 20), store=memmap_loc / "XZarr.zarr")
-        # self.ypath = zarr.open(shape=(num_of_frames * len(audio_paths),), dtype="f4", mode="r", chunks=(1,), store=memmap_loc / "yZarr.zarr")
-        self.data = data
+        self.len = len(audio_paths)
         
     def __len__(self):
-        return len(self.data)
+        return self.len
 
     def __getitem__(self, index):
-        spec, label = self.data[index]
+        spec, label = process_audio(audio_paths[index])
         label = self.encode_label(label).to(device)
         spec = torch.from_numpy(spec).to(device)
         return spec, label
@@ -134,8 +159,8 @@ class SoundDataset(Dataset):
         vector[label] = 1
         return vector
 
-print("Loading audios")
-dataset = SoundDataset(load_audios(timings))
+print("Loading dataset")
+dataset = SoundDataset()
 
 # %% NN Model
 class VonMisesLayer(nn.Module):
@@ -380,9 +405,9 @@ val_size = len(dataset) - train_size
 # Perform the train-test split
 train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
-dataloader_train = DataLoader(train_dataset, batch_size=32, shuffle=True)
-dataloader_val = DataLoader(val_dataset, batch_size=32, shuffle=False)
-model = ResNet(Bottleneck, layers=[3, 4, 6, 3], num_classes=72).half().to(device)
+dataloader_train = DataLoader(train_dataset, batch_size=None, shuffle=True)
+dataloader_val = DataLoader(val_dataset, batch_size=None, shuffle=False)
+model = ResNet(Bottleneck, layers=[3, 4, 6, 3], num_classes=72).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 loss_fn = nn.CrossEntropyLoss()
 
