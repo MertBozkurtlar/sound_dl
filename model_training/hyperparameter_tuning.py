@@ -1,103 +1,33 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# %% Imports
 import torch
-from tqdm import tqdm
-import librosa
-import numpy as np
-import concurrent.futures as cf
-import random
-import scipy
-import re
-import os
-from pathlib import Path
-import torchaudio
-import math
 import torch.nn as nn
 from torch.cuda import is_available
 from torch.utils.data import DataLoader, Dataset, random_split
 import pickle
+from pathlib import Path
+import os
+import tqdm
 import json
+import matplotlib.pyplot as plt
+import scienceplots
+import optuna
+import pandas as pd
+import gc
 
-# %% Variables
-split_file_loc = Path("/misc/export3/bozkurtlar/recordings/rec000.wav")
-data_loc = Path("/misc/export3/bozkurtlar/Test_Recordings")
-dataset_loc = Path("/misc/export3/bozkurtlar/data/noise_dataset")
-save_loc = os.path.abspath("/home/mert/ssl_robot/data/noise_training")
+dataset_loc = Path("/misc/export3/bozkurtlar/datasets/noise_dataset")
+save_loc = Path("/home/mert/ssl_robot/data/hyperparameter_tuning")
 audio_duration = 10 * 60
 
 device = 'cuda:5' if is_available() else 'cpu'
 print(f"Using {device} device")
 degree_step = 5
 
+gc.disable()
+with open(dataset_loc / "Xdata.pkl", "rb") as f:
+    Xdata = pickle.load(f)
+with open(dataset_loc / "ydata.pkl", "rb") as f:
+    ydata = pickle.load(f)
+gc.enable()
 
-# %% Label the recording to speech and silent parts
-def get_splits(debug=False) -> dict:
-    '''
-    Get timings of non silent data for each degree from clean record
-    
-    Returns:
-        Dictionary with timings for each degree. Degree -> Timings array
-    '''
-    signal, _ = librosa.load(split_file_loc, sr=16000, mono=True, duration = audio_duration)
-    signal = librosa.util.normalize(signal)
-    spectogram = librosa.stft(signal, n_fft=400, hop_length=160)
-    rms = librosa.feature.rms(S=spectogram, frame_length=400, hop_length=160)
-    frames = np.array_split(rms[0], range(20, len(rms[0]), 20))[:-1]
-    avg_rms = [split.mean() for split in frames]
-    silents = [f'{"silent" if split < max(avg_rms) / 20 else "speech"}' for i, split in enumerate(avg_rms)]
-    silents = [True if frame == "speech" else False for frame in silents]
-    return silents
-
-print("Getting timings")
-silents = get_splits()
-
-# %% Load audios to an array
-audio_paths = list(data_loc.rglob("*.wav"))
-file_num = len(audio_paths)
-file_len = silents.count(True)
-
-def process_audio(file_path):
-    signal, _ = librosa.load(file_path, sr=16000, mono=False, duration=audio_duration)
-    deg = int(re.search(r'\d+', file_path.stem).group())
-    signal = librosa.util.normalize(signal)
-    signal = librosa.stft(signal, n_fft=400, hop_length=160)
-    signal = np.array_split(signal, range(20, signal.shape[2], 20), axis=2)[:-1]
-    signal = np.angle(signal)
-    
-    # Remove silents from dataset
-    signal = signal[silents]
-    values = np.ones(signal.shape[0]) * deg
-    
-    return signal, values
-    
-def load_audios() -> list:
-    print("Processing audios")
-    # Start workers for processing data
-    Xdata = []
-    ydata = []
-
-    with cf.ProcessPoolExecutor(max_workers=10) as executor:
-        futures = []
-        
-        for audio_path in audio_paths:
-            f = executor.submit(process_audio, audio_path)
-            futures.append(f)
-
-        for index, f in tqdm(enumerate(cf.as_completed(futures)), total=len(futures)):
-            X, y = f.result()
-            Xdata.extend(X)
-            ydata.extend(y)
-    return Xdata, ydata
-
-print("Loading data")
-Xdata, ydata = load_audios()
-pickle.dump(Xdata, dataset_loc / "Xdata.pkl", protocol=pickle.HIGHEST_PROTOCOL)
-pickle.dump(ydata, dataset_loc / "ydata.pkl", protocol=pickle.HIGHEST_PROTOCOL)
-
-    
-# %% Dataset
 class SoundDataset(Dataset):
     def __init__(self) -> None:
         super().__init__()
@@ -124,7 +54,6 @@ class SoundDataset(Dataset):
 print("Loading dataset")
 dataset = SoundDataset()
 
-# %% NN Model
 class VonMisesLayer(nn.Module):
     def __init__(self, input_channel, output_channel, kernel_size, stride=2, padding=3):
         super().__init__()
@@ -194,7 +123,7 @@ class Bottleneck(torch.nn.Module):
 
 
 class ResNet(torch.nn.Module):
-    def __init__(self, block, layers, num_classes=72, zero_init_residual=False, groups=1,
+    def __init__(self, block, layers, num_classes=72, dropout_p = 0.5,zero_init_residual=False, groups=1,
                  width_per_group=64, replace_stride_with_dilation=None, norm_layer=None):
         
         super().__init__()
@@ -217,7 +146,8 @@ class ResNet(torch.nn.Module):
         self.bn1 = norm_layer(self.inplanes)
         self.sigmoid = torch.nn.Sigmoid()
         self.maxpool = torch.nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.dropout = torch.nn.Dropout2d(p=0.5)
+        self.dropout2d = torch.nn.Dropout2d(p=dropout_p)
+        self.dropout = torch.nn.Dropout(p=dropout_p)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2,
                                        dilate=replace_stride_with_dilation[0])
@@ -272,33 +202,31 @@ class ResNet(torch.nn.Module):
 
     def forward(self, x):
         # Von-mises Layer
+        x = self.dropout2d(x)
         x = self.conv1(x) 
         x = self.bn1(x)
         x = self.sigmoid(x)
         x = self.maxpool(x)
-        x = self.dropout(x)
 
         # Residual Layers
+        x = self.dropout2d(x)
         x = self.layer1(x)
+        x = self.dropout2d(x)
         x = self.layer2(x)
+        x = self.dropout2d(x)
         x = self.layer3(x)
+        x = self.dropout2d(x)
         x = self.layer4(x)
 
         # Classification
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.elu(x)
+        x = self.dropout(x)
         x = self.fc2(x)
         return x
 
-
-# %% Training functions
-train_losses = []
-train_accuracies = []
-val_losses = []
-val_accuracies = []
-
-def train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn, device, file):
+def train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn):
     '''Trains a single epoch, helper function for (function) train_model'''
     train_loss = 0
     val_loss = 0
@@ -337,29 +265,14 @@ def train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn, dev
     val_accuracy = (val_accuracy_correct / val_accuracy_total) * 100
     train_accuracy = (train_accuracy_correct / train_accuracy_total) * 100
     
-    train_losses.append(train_loss)
-    train_accuracies.append(train_accuracy)
-    val_losses.append(val_loss)
-    val_accuracies.append(val_accuracy)
-    print(f"Train Loss: {train_loss:.5f}, Train Accuracy: {train_accuracy:.2f}%, Val. Loss: {val_loss:.5f}, Val. Accuracy: {val_accuracy:.2f}%")
-    file.write(f"Train Loss: {train_loss:.5f}, Train Accuracy: {train_accuracy:.2f}%, Val. Loss: {val_loss:.5f}, Val. Accuracy: {val_accuracy:.2f}%\n")
-
+    return val_loss
+    
 
 def train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, epochs):
-    '''Trains the model for all epochs'''
-    file = open(save_loc + "/log.txt", "a")
-    file.write("Starting the training\n")
-    start_epoch = len(train_losses) + 1 # Epoch from the last training, 0 if the is no previous training
-    for epoch in range(start_epoch, start_epoch + epochs):
-        print(f"Epoch: {epoch}")
-        file.write(f"Epoch: {epoch}\n")
-        train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn, device, file)
-        print("------------------------")
-    file.close()
-    print("Finished training")
+    for epoch in range(epochs):
+        val_loss = train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn, device)
+    return val_loss
 
-
-# %% Training
 # Define the size of train and test datasets
 train_size = int(0.85 * len(dataset))
 val_size = len(dataset) - train_size
@@ -369,47 +282,35 @@ train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
 dataloader_train = DataLoader(train_dataset, batch_size=64, shuffle=True)
 dataloader_val = DataLoader(val_dataset, batch_size=64, shuffle=False)
-model = ResNet(Bottleneck, layers=[3, 4, 6, 3], num_classes=72).to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-loss_fn = nn.CrossEntropyLoss()
 
-# Load previous training if exists
-if (os.path.exists(save_loc)):
-    print(f"Pre-trained model found at {save_loc}, loading..")
-    model.load_state_dict(torch.load(save_loc + "/vm_model.pth")) # Model
-    with open(save_loc + "/logs.json", "r") as fp: # Logs
-        train_losses, val_losses, train_accuracies, val_accuracies = json.load(fp)
-else: # Create the directory if it doesn't
-    print(f"No pre-trained model found, creating dictionary {save_loc}..")
+def objective(trial):
+    l1 = trial.suggest_int("l1", 1, 6)
+    l2 = trial.suggest_int("l2", 1, 6)
+    l3 = trial.suggest_int("l3", 1, 6)
+    l4 = trial.suggest_int("l4", 1, 6)
+    dropout_p = trial.suggest_float("dropout_p", 0.0, 1.0)
+    lr = trial.suggest_float("lr", 1e-5, 1e-1)
+    
+    model = ResNet(Bottleneck, layers=[l1,l2,l3,l4], num_classes=72, dropout_p=dropout_p).to(device)
+    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
+    loss_fn = nn.CrossEntropyLoss()
+    val_loss = train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, 60)
+    return val_loss
+
+study = optuna.create_study(direction='minimize')
+
+study.optimize(objective, n_trials=100)
+
+print(f"Best params: {study.best_params}")
+print(f"Best score: {study.best_score}")
+
+print(study.trials)
+
+# Get the trials as a pandas DataFrame
+trials_df = study.trials_dataframe()
+
+# Save the trials to a CSV file
+if (not os.path.exists(save_loc)):
     os.makedirs(save_loc)
-
-try:
-    train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, 200)
-except KeyboardInterrupt:
-    print("Stopping the training early")
-
-
-# %% Save the model and logs
-torch.save(model.state_dict(), save_loc + "/vm_model.pth") # Model
-with open(save_loc + "/logs.json", "w") as fp: # Logs
-    json.dump([train_losses, val_losses, train_accuracies, val_accuracies], fp, indent=2)
-
-# %% Plot the results
-import matplotlib.pyplot as plt
-import scienceplots
-plt.style.use(["science", "notebook", "grid"])
-
-plt.plot(train_losses, label="Train")
-plt.plot(val_losses, label="Validation")
-plt.legend()
-plt.title("Loss")
-plt.savefig(save_loc + "/fig_loss.png")
-plt.show()
-plt.clf()
-
-plt.plot(train_accuracies, label="Train")
-plt.plot(val_accuracies, label="Validation")
-plt.legend()
-plt.title("Accuracy %")
-plt.savefig(save_loc + "/fig_accuracy.png")
-plt.show()
+    
+trials_df.to_csv(save_loc / 'trials.csv', index=False)
