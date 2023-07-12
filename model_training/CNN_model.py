@@ -69,6 +69,7 @@ def process_audio(file_path):
     # Remove silents from dataset
     signal = signal[silents]
     values = np.ones(signal.shape[0]) * deg
+    print(signal.shape)
     
     return signal, values
     

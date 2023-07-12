@@ -30,7 +30,7 @@ print(f"Using {device} device")
 degree_step = 5
 
 from models import ResNet
-model = torch.nn.DataParallel(ResNet.ResNet(ResNet.Bottleneck, layers=[3, 4, 6, 3], num_classes=72)).to(device)
+model = ResNet.ResNet(ResNet.Bottleneck, layers=[3, 4, 6, 3], num_classes=72).to(device)
 
 gc.disable()
 print("Loading data")
@@ -148,7 +148,7 @@ train_accuracies = []
 val_losses = []
 val_accuracies = []
 
-save_directory = save_loc / model.name
+save_directory = save_loc
 os.makedirs(save_directory)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
 train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, 200)
