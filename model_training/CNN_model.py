@@ -22,10 +22,10 @@ import json
 
 # %% Variables
 split_file_loc = Path("/misc/export3/bozkurtlar/recordings/rec000.wav")
-data_loc = Path("/misc/export3/bozkurtlar/Test_Recordings")
-dataset_loc = Path("/misc/export3/bozkurtlar/data/noise_dataset")
-save_loc = os.path.abspath("/home/mert/ssl_robot/data/noise_training")
-audio_duration = 10 * 60
+data_loc = Path("/misc/export3/bozkurtlar/noise_mixed_recordings")
+dataset_loc = Path("/misc/export3/bozkurtlar/data/reduced_dataset")
+save_loc = os.path.abspath("/home/mert/ssl_robot/data/reduced_training")
+audio_duration = 2 * 60
 
 device = 'cuda:5' if is_available() else 'cpu'
 print(f"Using {device} device")
@@ -92,9 +92,12 @@ def load_audios() -> list:
     return Xdata, ydata
 
 print("Loading data")
+dataset_loc.mkdir()
 Xdata, ydata = load_audios()
-pickle.dump(Xdata, dataset_loc / "Xdata.pkl", protocol=pickle.HIGHEST_PROTOCOL)
-pickle.dump(ydata, dataset_loc / "ydata.pkl", protocol=pickle.HIGHEST_PROTOCOL)
+with open(dataset_loc / "Xdata.pkl", "wb") as f:
+    pickle.dump(Xdata, f, protocol=pickle.HIGHEST_PROTOCOL)
+with open(dataset_loc / "ydata.pkl", "wb") as f:  
+    pickle.dump(ydata, f, protocol=pickle.HIGHEST_PROTOCOL)
 
     
 # %% Dataset
@@ -217,7 +220,8 @@ class ResNet(torch.nn.Module):
         self.bn1 = norm_layer(self.inplanes)
         self.sigmoid = torch.nn.Sigmoid()
         self.maxpool = torch.nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
-        self.dropout = torch.nn.Dropout2d(p=0.5)
+        self.dropout2d = torch.nn.Dropout2d(p=0.5)
+        self.dropout = torch.nn.Dropout(p=0.5)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2,
                                        dilate=replace_stride_with_dilation[0])
@@ -272,11 +276,11 @@ class ResNet(torch.nn.Module):
 
     def forward(self, x):
         # Von-mises Layer
+        x = self.dropout2d(x)
         x = self.conv1(x) 
         x = self.bn1(x)
         x = self.sigmoid(x)
         x = self.maxpool(x)
-        x = self.dropout(x)
 
         # Residual Layers
         x = self.layer1(x)
@@ -288,6 +292,7 @@ class ResNet(torch.nn.Module):
         x = self.avgpool(x)
         x = torch.flatten(x, 1)
         x = self.elu(x)
+        x = self.dropout(x)
         x = self.fc2(x)
         return x
 
@@ -384,7 +389,7 @@ else: # Create the directory if it doesn't
     os.makedirs(save_loc)
 
 try:
-    train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, 200)
+    train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, 100)
 except KeyboardInterrupt:
     print("Stopping the training early")
 

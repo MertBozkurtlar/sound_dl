@@ -16,18 +16,30 @@ from torch.utils.data import DataLoader, Dataset, random_split
 import json
 import matplotlib.pyplot as plt
 import scienceplots
+import pickle
+import gc
 
 
 # %% Variables
-split_file_loc = Path("/misc/export3/bozkurtlar/recordings/rec000.wav")
-data_loc = Path("/misc/export3/bozkurtlar/noise_mixed_recordings")
-dataset_loc = Path("/misc/export3/bozkurtlar/datasets/noise_dataset")
-save_loc = os.path.abspath("/home/mert/ssl_robot/data/noise_training")
+dataset_loc = Path("/misc/export3/bozkurtlar/data/noise_dataset")
+save_loc = os.path.abspath("/home/mert/ssl_robot/data/resnet_training")
 audio_duration = 10 * 60
 
-device = 'cuda:5' if is_available() else 'cpu'
+device = 'cuda' if is_available() else 'cpu'
 print(f"Using {device} device")
 degree_step = 5
+
+from models import ResNet
+model = torch.nn.DataParallel(ResNet.ResNet(ResNet.Bottleneck, layers=[3, 4, 6, 3], num_classes=72)).to(device)
+
+gc.disable()
+print("Loading data")
+with open(dataset_loc / "Xdata.pkl", "rb") as f:
+    Xdata = pickle.load(f)
+with open(dataset_loc / "ydata.pkl", "rb") as f:
+    ydata = pickle.load(f)
+gc.enable()
+
     
 # %% Dataset
 class SoundDataset(Dataset):
@@ -56,12 +68,6 @@ class SoundDataset(Dataset):
 # Xdata, ydata = load_audios()
 print("Loading dataset")
 dataset = SoundDataset()
-
-# %% Training functions
-train_losses = []
-train_accuracies = []
-val_losses = []
-val_accuracies = []
 
 def train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn, device, file):
     '''Trains a single epoch, helper function for (function) train_model'''
@@ -137,54 +143,31 @@ dataloader_val = DataLoader(val_dataset, batch_size=64, shuffle=False)
 loss_fn = nn.CrossEntropyLoss()
 
 
+train_losses = []
+train_accuracies = []
+val_losses = []
+val_accuracies = []
 
-from models import ResNet
-resnet = ResNet.ResNet(ResNet.Bottleneck, layers=[3, 4, 6, 3], num_classes=72).to(device)
-modelList = [resnet]
-for model in modelList:
-    try:
-        save_directory = save_loc / model.name
-        os.makedirs(save_directory)
-        optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-        train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, 200)
-        torch.save(model.state_dict(), save_directory + "/vm_model.pth")
-        with open(save_directory + "/logs.json", "w") as fp: # Logs
-            json.dump([train_losses, val_losses, train_accuracies, val_accuracies], fp, indent=2)
-        plt.style.use(["science", "notebook", "grid"])
+save_directory = save_loc / model.name
+os.makedirs(save_directory)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
+train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, 200)
+torch.save(model.state_dict(), save_directory + "/vm_model.pth")
+with open(save_directory + "/logs.json", "w") as fp: # Logs
+    json.dump([train_losses, val_losses, train_accuracies, val_accuracies], fp, indent=2)
+plt.style.use(["science", "notebook", "grid"])
 
-        plt.plot(train_losses, label="Train")
-        plt.plot(val_losses, label="Validation")
-        plt.legend()
-        plt.title("Loss")
-        plt.savefig(save_loc + "/fig_loss.png")
-        plt.show()
-        plt.clf()
+plt.plot(train_losses, label="Train")
+plt.plot(val_losses, label="Validation")
+plt.legend()
+plt.title("Loss")
+plt.savefig(save_loc + "/fig_loss.png")
+plt.show()
+plt.clf()
 
-        plt.plot(train_accuracies, label="Train")
-        plt.plot(val_accuracies, label="Validation")
-        plt.legend()
-        plt.title("Accuracy %")
-        plt.savefig(save_loc + "/fig_accuracy.png")
-        plt.show()
-        
-        train_losses = []
-        train_accuracies = []
-        val_losses = []
-        val_accuracies = []
-    except KeyboardInterrupt:
-        print("Stopping the training early")
-        break
-
-# # Load previous training if exists
-# if (os.path.exists(save_loc)):
-#     print(f"Pre-trained model found at {save_loc}, loading..")
-#     model.load_state_dict(torch.load(save_loc + "/vm_model.pth")) # Model
-#     with open(save_loc + "/logs.json", "r") as fp: # Logs
-#         train_losses, val_losses, train_accuracies, val_accuracies = json.load(fp)
-# else: # Create the directory if it doesn't
-#     print(f"No pre-trained model found, creating dictionary {save_loc}..")
-#     os.makedirs(save_loc)
-
-
-
-# %% Plot the results
+plt.plot(train_accuracies, label="Train")
+plt.plot(val_accuracies, label="Validation")
+plt.legend()
+plt.title("Accuracy %")
+plt.savefig(save_loc + "/fig_accuracy.png")
+plt.show()

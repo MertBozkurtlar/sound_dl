@@ -70,7 +70,7 @@ class Bottleneck(torch.nn.Module):
 
 
 class ResNet(torch.nn.Module):
-    def __init__(self, block, layers, num_classes=73, zero_init_residual=False, groups=1,
+    def __init__(self, block, layers, num_classes=72, zero_init_residual=False, groups=1,
                  width_per_group=64, replace_stride_with_dilation=None, norm_layer=None):
         
         super().__init__()
@@ -89,7 +89,7 @@ class ResNet(torch.nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = VonMisesLayer(8, self.inplanes, kernel_size=7, stride=2, padding=3)
+        self.vonMisesLayer = VonMisesLayer(8, self.inplanes, kernel_size=7, stride=2, padding=3)
         self.bn1 = norm_layer(self.inplanes)
         self.sigmoid = torch.nn.Sigmoid()
         self.maxpool = torch.nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -148,7 +148,7 @@ class ResNet(torch.nn.Module):
 
     def forward(self, x):
         # Von-mises Layer
-        x = self.conv1(x) 
+        x = self.vonMisesLayer(x) 
         x = self.bn1(x)
         x = self.sigmoid(x)
         x = self.maxpool(x)
@@ -166,3 +166,4 @@ class ResNet(torch.nn.Module):
         x = self.elu(x)
         x = self.fc2(x)
         return x
+

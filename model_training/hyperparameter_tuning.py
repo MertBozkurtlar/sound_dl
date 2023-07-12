@@ -1,27 +1,24 @@
 import torch
+from tqdm import tqdm
+import os
+from pathlib import Path
 import torch.nn as nn
 from torch.cuda import is_available
 from torch.utils.data import DataLoader, Dataset, random_split
 import pickle
-from pathlib import Path
-import os
-import tqdm
-import json
-import matplotlib.pyplot as plt
-import scienceplots
 import optuna
-import pandas as pd
 import gc
 
-dataset_loc = Path("/misc/export3/bozkurtlar/datasets/noise_dataset")
+dataset_loc = Path("/misc/export3/bozkurtlar/data/noise_dataset")
 save_loc = Path("/home/mert/ssl_robot/data/hyperparameter_tuning")
 audio_duration = 10 * 60
 
-device = 'cuda:5' if is_available() else 'cpu'
+device = 'cuda' if is_available() else 'cpu'
 print(f"Using {device} device")
 degree_step = 5
 
 gc.disable()
+print("Loading data")
 with open(dataset_loc / "Xdata.pkl", "rb") as f:
     Xdata = pickle.load(f)
 with open(dataset_loc / "ydata.pkl", "rb") as f:
@@ -270,7 +267,7 @@ def train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn):
 
 def train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, epochs):
     for epoch in range(epochs):
-        val_loss = train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn, device)
+        val_loss = train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn)
     return val_loss
 
 # Define the size of train and test datasets
@@ -280,8 +277,8 @@ val_size = len(dataset) - train_size
 # Perform the train-test split
 train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
 
-dataloader_train = DataLoader(train_dataset, batch_size=64, shuffle=True)
-dataloader_val = DataLoader(val_dataset, batch_size=64, shuffle=False)
+dataloader_train = DataLoader(train_dataset, batch_size=256, shuffle=True)
+dataloader_val = DataLoader(val_dataset, batch_size=256, shuffle=False)
 
 def objective(trial):
     l1 = trial.suggest_int("l1", 1, 6)
@@ -291,7 +288,7 @@ def objective(trial):
     dropout_p = trial.suggest_float("dropout_p", 0.0, 1.0)
     lr = trial.suggest_float("lr", 1e-5, 1e-1)
     
-    model = ResNet(Bottleneck, layers=[l1,l2,l3,l4], num_classes=72, dropout_p=dropout_p).to(device)
+    model = nn.DataParallel(ResNet(Bottleneck, layers=[l1,l2,l3,l4], num_classes=72, dropout_p=dropout_p)).to(device)
     optimizer = torch.optim.Adam(model.parameters(), lr=lr)
     loss_fn = nn.CrossEntropyLoss()
     val_loss = train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, 60)
@@ -299,10 +296,10 @@ def objective(trial):
 
 study = optuna.create_study(direction='minimize')
 
-study.optimize(objective, n_trials=100)
+study.optimize(objective, n_trials=50)
 
 print(f"Best params: {study.best_params}")
-print(f"Best score: {study.best_score}")
+print(f"Best score: {study.best_value}")
 
 print(study.trials)
 
