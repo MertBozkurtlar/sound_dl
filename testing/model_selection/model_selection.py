@@ -151,10 +151,18 @@ val_accuracies = []
 save_directory = save_loc
 os.makedirs(save_directory)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.01)
-train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, 200)
-torch.save(model.state_dict(), save_directory + "/vm_model.pth")
+try:
+    train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, 200)
+except KeyboardInterrupt:
+    print("Stopping the training early")
+except:
+    print("Some error happened")
+
 with open(save_directory + "/logs.json", "w") as fp: # Logs
     json.dump([train_losses, val_losses, train_accuracies, val_accuracies], fp, indent=2)
+
+
+torch.save(model.state_dict(), save_directory + "/vm_model.pth")
 plt.style.use(["science", "notebook", "grid"])
 
 plt.plot(train_losses, label="Train")

@@ -1,55 +1,5 @@
 import torch
-from tqdm import tqdm
-import os
-from pathlib import Path
 import torch.nn as nn
-from torch.cuda import is_available
-from torch.utils.data import DataLoader, Dataset, random_split
-import pickle
-import optuna
-import gc
-
-dataset_loc = Path("/misc/export3/bozkurtlar/data/noise_dataset")
-save_loc = Path("/home/mert/ssl_robot/data/hyperparameter_tuning")
-audio_duration = 10 * 60
-
-device = 'cuda' if is_available() else 'cpu'
-print(f"Using {device} device")
-degree_step = 5
-
-gc.disable()
-print("Loading data")
-with open(dataset_loc / "Xdata.pkl", "rb") as f:
-    Xdata = pickle.load(f)
-with open(dataset_loc / "ydata.pkl", "rb") as f:
-    ydata = pickle.load(f)
-gc.enable()
-
-class SoundDataset(Dataset):
-    def __init__(self) -> None:
-        super().__init__()
-        self.degree_step = degree_step
-        
-    def __len__(self):
-        return len(ydata)
-
-    def __getitem__(self, index):
-        spec = Xdata[index]
-        label = ydata[index]
-        label = self.encode_label(label).to(device)
-        spec = torch.from_numpy(spec).to(device)
-        return spec, label
-    
-    # Encode the label in one-hot vector 
-    def encode_label(self, label):
-        vector = torch.zeros(int(360 / self.degree_step))
-        label = int(label / self.degree_step)
-        vector[label] = 1
-        return vector
-
-
-print("Loading dataset")
-dataset = SoundDataset()
 
 class VonMisesLayer(nn.Module):
     def __init__(self, input_channel, output_channel, kernel_size, stride=2, padding=3):
@@ -120,7 +70,7 @@ class Bottleneck(torch.nn.Module):
 
 
 class ResNet(torch.nn.Module):
-    def __init__(self, block, layers, num_classes=72,zero_init_residual=False, groups=1,
+    def __init__(self, block, layers, num_classes=72, zero_init_residual=False, groups=1,
                  width_per_group=64, replace_stride_with_dilation=None, norm_layer=None):
         
         super().__init__()
@@ -139,10 +89,11 @@ class ResNet(torch.nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = VonMisesLayer(8, self.inplanes, kernel_size=7, stride=2, padding=3)
+        self.vonMisesLayer = VonMisesLayer(8, self.inplanes, kernel_size=7, stride=2, padding=3)
         self.bn1 = norm_layer(self.inplanes)
         self.sigmoid = torch.nn.Sigmoid()
         self.maxpool = torch.nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
+        self.dropout = torch.nn.Dropout2d(p=0.5)
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1], stride=2,
                                        dilate=replace_stride_with_dilation[0])
@@ -197,10 +148,11 @@ class ResNet(torch.nn.Module):
 
     def forward(self, x):
         # Von-mises Layer
-        x = self.conv1(x) 
+        x = self.vonMisesLayer(x) 
         x = self.bn1(x)
         x = self.sigmoid(x)
         x = self.maxpool(x)
+        x = self.dropout(x)
 
         # Residual Layers
         x = self.layer1(x)
@@ -215,86 +167,3 @@ class ResNet(torch.nn.Module):
         x = self.fc2(x)
         return x
 
-def train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn):
-    '''Trains a single epoch, helper function for (function) train_model'''
-    train_loss = 0
-    val_loss = 0
-    train_accuracy_correct = 0
-    train_accuracy_total = 0
-    val_accuracy_correct = 0
-    val_accuracy_total = 0
-    
-    # Train
-    for input, target in tqdm(dataloader_train):
-        # forward pass
-        optimizer.zero_grad()
-        prediction = model(input)
-        loss = loss_fn(prediction, target)
-
-        # backpropagation
-        loss.backward()
-        optimizer.step()
-        
-        train_loss += loss.item()
-        train_accuracy_correct += len([prediction[i] for i in range(len(prediction)) if prediction[i].argmax() == target[i].argmax()])
-        train_accuracy_total += len(prediction)
-    train_loss /= len(dataloader_train)
-    
-    # Validation
-    with torch.no_grad():
-        for input, target in tqdm(dataloader_val):
-            prediction = model(input)
-            loss = loss_fn(prediction, target)
-            val_loss += loss.item()
-            val_accuracy_correct += len([prediction[i] for i in range(len(prediction)) if prediction[i].argmax() == target[i].argmax()])
-            val_accuracy_total += len(prediction)
-        val_loss /= len(dataloader_val)
-        
-    # Calculate accuracies
-    val_accuracy = (val_accuracy_correct / val_accuracy_total) * 100
-    train_accuracy = (train_accuracy_correct / train_accuracy_total) * 100
-    
-    return val_loss
-    
-
-def train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, epochs):
-    for epoch in range(epochs):
-        val_loss = train_epoch(model, dataloader_train, dataloader_val, optimizer, loss_fn)
-    return val_loss
-
-# Define the size of train and test datasets
-train_size = int(0.85 * len(dataset))
-val_size = len(dataset) - train_size
-
-# Perform the train-test split
-train_dataset, val_dataset = random_split(dataset, [train_size, val_size])
-
-dataloader_train = DataLoader(train_dataset, batch_size=128, shuffle=True)
-dataloader_val = DataLoader(val_dataset, batch_size=128, shuffle=False)
-
-def objective(trial):
-    lr = trial.suggest_float("lr", 1e-5, 1e-1)
-    
-    model = ResNet(Bottleneck, layers=[3,4,6,3], num_classes=72).to(device)
-    optimizer = torch.optim.Adam(model.parameters(), lr=lr)
-    loss_fn = nn.CrossEntropyLoss()
-    val_loss = train_model(model, dataloader_train, dataloader_val, optimizer, loss_fn, 50)
-    return val_loss
-
-study = optuna.create_study(direction='minimize')
-
-study.optimize(objective, n_trials=50)
-
-print(f"Best params: {study.best_params}")
-print(f"Best score: {study.best_value}")
-
-print(study.trials)
-
-# Get the trials as a pandas DataFrame
-trials_df = study.trials_dataframe()
-
-# Save the trials to a CSV file
-if (not os.path.exists(save_loc)):
-    os.makedirs(save_loc)
-    
-trials_df.to_csv(save_loc / 'trials.csv', index=False)
