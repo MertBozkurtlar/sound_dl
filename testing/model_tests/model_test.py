@@ -18,13 +18,33 @@ fs = 16000 # Sampling rate
 CHUNK = 3200
 
 modelDataLoc = os.path.abspath("../../data")
-from models import DenseNet, ResNet, vMDenseNet, model
+from models import DenseNet, ResNet, vMDenseNet, vMResNet
 device = "cuda" if cuda.is_available else "cpu"
 
+vmResNet = vMResNet.ResNet(vMResNet.Bottleneck, layers=[3, 4, 6, 3], num_classes=72).to(device)
+model_loc = modelDataLoc + "/vMResNetTraining/vm_model.pth"
+vMResNet.load_state_dict(torch.load(model_loc, map_location=device))
+vMResNet.eval()
+
+resNet = ResNet.ResNet(ResNet.Bottleneck, layers=[3, 4, 6, 3], num_classes=72).to(device)
+model_loc = modelDataLoc + "/resnet_training/vm_model.pth"
+resNet.load_state_dict(torch.load(model_loc, map_location=device))
+resNet.eval()
+
+denseNet = DenseNet.ResNet().to(device)
+model_loc = modelDataLoc + "/DenseNetTraining/vm_model.pth"
+denseNet.load_state_dict(torch.load(model_loc, map_location=device))
+denseNet.eval()
+
+vmDenseNet = vMDenseNet.ResNet().to(device)
+model_loc = modelDataLoc + "/vMDenseNetTraining/vm_model.pth"
+vmDenseNet.load_state_dict(torch.load(model_loc, map_location=device))
+vmDenseNet.eval()
+
+models = [vmResNet, resNet, vmDenseNet, denseNet]
+
+
 # Argument parser
-
-parser = argparse.ArgumentParser(description='control traverse, play audio, and record it')
-
 rec_fs = 16000
 rec_format = "S32_LE"
 rec_dev = "default"
@@ -36,20 +56,13 @@ tra_IP = "192.168.100.80"
 tra_user = "traverse"
 tra_pass = "pass.txt"
 
-args = parser.parse_args()
-
 # Variables
 play_file = "test.wav"
 duration = int(WAVE(play_file).info.length) + 1
 print(f"Duration of the played audio is: {duration}")
 
-def prediction_init(duration, angle):
+def prediction_init(model, duration, angle):
 	print("Initialising pyaudio")
-	vmnet = model.ResNet(model.Bottleneck, layers=[3, 4, 6, 3], num_classes=72).to(device)
-	model_loc = modelDataLoc + "/vMResNetTraining/vm_model.pth"
-	vmnet.load_state_dict(torch.load(model_loc, map_location=device))
-	vmnet.eval()
-	
 	stream = pa.open(format =paFloat32,
 					channels = nChannels,
 					rate = fs,
@@ -68,7 +81,7 @@ def prediction_init(duration, angle):
 		data = np.frombuffer(rec, dtype=np.float32)
 		data.shape = (CHUNK,nChannels)
 		data = np.transpose(data, axes=[1,0])
-		make_prediction(data, vmnet, angle)
+		make_prediction(data, model, angle)
 		
 		if (time.time() - start_time >= duration):
 			break
@@ -109,15 +122,17 @@ res = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 sys.stdout.buffer.write(res.stdout)
 	
 acc_array = []
-for deg in range(0, 10, tra_deg):
+for deg in range(0, 360, tra_deg):
 	print("****** {:03} degrees *******".format(deg))
 	command=["sshpass", "-f", "pass.txt", "ssh", "-o", "StrictHostKeyChecking=no", "-l", "traverse", tra_IP, "python", "scripts/move.py", "-d", str(tra_deg), "-s", str(tra_spd), "--anticlockwise"]
 	res = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
 	sys.stdout.buffer.write(res.stdout)
-	acc = prediction_init(duration, deg)
-	acc_array.append(acc)
+	for model in models:
+		acc = prediction_init(model, duration, deg)
+		acc_array.append(acc)
 
-print(acc_array)
+with open('accuracy.txt','w') as tfile:
+	tfile.write('\n'.join(acc_array))
 		
 		
 	

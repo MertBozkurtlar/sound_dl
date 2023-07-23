@@ -89,7 +89,7 @@ class ResNet(torch.nn.Module):
                              "or a 3-element tuple, got {}".format(replace_stride_with_dilation))
         self.groups = groups
         self.base_width = width_per_group
-        self.conv1 = VonMisesLayer(8, self.inplanes, kernel_size=7, stride=2, padding=3)
+        self.conv1 = torch.nn.Conv2d(8, self.inplanes, kernel_size=7, stride=2, padding=3)
         self.bn1 = norm_layer(self.inplanes)
         self.sigmoid = torch.nn.Sigmoid()
         self.maxpool = torch.nn.MaxPool2d(kernel_size=3, stride=2, padding=1)
@@ -152,7 +152,6 @@ class ResNet(torch.nn.Module):
         x = self.bn1(x)
         x = self.sigmoid(x)
         x = self.maxpool(x)
-        x = self.dropout(x)
 
         # Residual Layers
         x = self.layer1(x)

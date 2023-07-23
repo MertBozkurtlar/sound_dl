@@ -152,7 +152,6 @@ class ResNet(torch.nn.Module):
         x = self.bn1(x)
         x = self.sigmoid(x)
         x = self.maxpool(x)
-        x = self.dropout(x)
 
         # Residual Layers
         x = self.layer1(x)
